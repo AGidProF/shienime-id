@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Video Anime - Shienime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'sakura': {
+                            50: '#fdf2f8',
+                            100: '#fce7f3',
+                            200: '#fbcfe8',
+                            300: '#f9a8d4',
+                            400: '#f472b6',
+                            500: '#ec4899',
+                            600: '#db2777',
+                            700: '#be185d',
+                            800: '#9d174d',
+                            900: '#831843'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-gradient {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        }
+        .sakura-gradient {
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .theme-dark {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .theme-light {
+            background: #fdf2f8;
+            color: #1e293b;
+        }
+        .video-container {
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .episode-item {
+            transition: all 0.3s ease;
+        }
+        .episode-item:hover {
+            transform: scale(1.05);
+        }
+        .episode-item.active {
+            background: #dc2626;
+            color: white;
+        }
+        .resolution-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .resolution-item:hover {
+            transform: scale(1.02);
+        }
+        .resolution-item.active {
+            background: #16a34a;
+            color: white;
+            border-color: #16a34a;
+        }
+        .anime-details-card {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .theme-light .anime-details-card {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .mobile-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        .search-form {
+            position: relative;
+        }
+        .anime-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            aspect-ratio: 3/4;
+        }
+        .anime-card .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .anime-card:hover .overlay {
+            opacity: 1;
+        }
+        .resolution-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .resolution-dropdown.open {
+            max-height: 400px;
+        }
+        .resolution-grid {
+            max-height: 300px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #dc2626 #374151;
+        }
+        .resolution-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .resolution-grid::-webkit-scrollbar-track {
+            background: #374151;
+            border-radius: 3px;
+        }
+        .resolution-grid::-webkit-scrollbar-thumb {
+            background: #dc2626;
+            border-radius: 3px;
+        }
+        .resolution-grid::-webkit-scrollbar-thumb:hover {
+            background: #b91c1c;
+        }
+        .arrow-rotate {
+            transform: rotate(180deg);
+            transition: transform 0.3s ease;
+        }
+        .nav-button-mobile {
+            min-width: 60px;
+        }
+    </style>
+</head>
+<body class="theme-dark transition-colors duration-300">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-8">
+                    <h1 class="text-2xl font-bold text-red-600">Shienime</h1>
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:flex space-x-6">
+                        <a href="index.html" class="text-white hover:text-red-500 transition-colors">Home</a>
+                        <a href="jadwal-rilis.html" class="text-white hover:text-red-500 transition-colors">Jadwal Rilis</a>
+                        <a href="#" class="text-white hover:text-red-500 transition-colors">Genre</a>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Search Form -->
+                    <form class="search-form hidden md:block" onsubmit="handleSearch(event)">
+                        <input 
+                            type="text" 
+                            id="searchInput"
+                            placeholder="Cari anime..." 
+                            class="bg-gray-800 text-white px-4 py-2 rounded-full pl-10 focus:outline-none focus:ring-2 focus:ring-red-500 w-64"
+                        >
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </form>
+                    
+                    <!-- Mobile Search Button -->
+                    <button id="mobileSearchBtn" class="md:hidden p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-search text-white"></i>
+                    </button>
+                    
+                    <!-- Theme Toggle -->
+                    <button id="themeToggle" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-moon text-white"></i>
+                    </button>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="md:hidden p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-bars text-white"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Search Bar -->
+        <div id="mobileSearchBar" class="md:hidden bg-black/95 p-4 hidden">
+            <form class="search-form" onsubmit="handleSearch(event)">
+                <input 
+                    type="text" 
+                    id="mobileSearchInput"
+                    placeholder="Cari anime..." 
+                    class="w-full bg-gray-800 text-white px-4 py-2 rounded-full pl-10 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenuOverlay" class="fixed inset-0 z-40 bg-black/50 hidden md:hidden"></div>
+    
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 h-full w-80 bg-black/95 backdrop-blur-md z-50 md:hidden">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold text-red-600">Shienime</h2>
+                <button id="closeMobileMenu" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-times text-white"></i>
+                </button>
+            </div>
+            
+            <nav class="space-y-4">
+                <a href="index.html" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="jadwal-rilis.html" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-calendar"></i>
+                    <span>Jadwal Rilis</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-tags"></i>
+                    <span>Genre</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="pt-20 min-h-screen bg-gray-900">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Page Title -->
+            <h1 class="text-3xl font-bold text-white mb-8 text-center">
+                <i class="fas fa-play-circle text-red-500 mr-2"></i>
+                Streaming Video Anime
+            </h1>
+
+            <!-- Video Player Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Video Container -->
+                <div class="lg:col-span-2">
+                    <div id="video-container" class="video-container bg-gray-800 flex items-center justify-center">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin text-4xl text-red-500 mb-4"></i>
+                            <p class="text-white">Memuat video...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Episode Navigation and Resolution Controls -->
+                    <div class="mt-4 flex flex-col gap-3">
+                        <!-- Mobile Navigation (Compact) -->
+                        <div class="flex items-center justify-between gap-2 md:hidden">
+                            <!-- Previous Episode Button (Mobile) -->
+                            <button id="prev-episode-btn-mobile" class="nav-button-mobile bg-red-600 hover:bg-red-700 text-white px-2 py-2 rounded-lg text-xs font-medium transition-colors hidden">
+                                <i class="fas fa-chevron-left"></i>
+                                <span class="hidden sm:inline ml-1">Prev</span>
+                            </button>
+                            
+                            <!-- Resolution Toggle Button (Mobile) -->
+                            <button id="resolution-toggle-mobile" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors hidden flex-1 max-w-[120px]">
+                                <i class="fas fa-cog text-xs mr-1"></i>
+                                <span id="current-resolution-text-mobile" class="text-xs truncate">Quality</span>
+                                <i class="fas fa-chevron-down ml-1 transition-transform duration-300 text-xs" id="resolution-arrow-mobile"></i>
+                            </button>
+                            
+                            <!-- Next Episode Button (Mobile) -->
+                            <button id="next-episode-btn-mobile" class="nav-button-mobile bg-red-600 hover:bg-red-700 text-white px-2 py-2 rounded-lg text-xs font-medium transition-colors hidden">
+                                <span class="hidden sm:inline mr-1">Next</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Desktop Navigation -->
+                        <div class="hidden md:flex items-center justify-between">
+                            <!-- Previous Episode Button -->
+                            <button id="prev-episode-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors hidden">
+                                <i class="fas fa-chevron-left mr-2"></i>
+                                Episode Sebelumnya
+                            </button>
+                            
+                            <!-- Resolution Toggle Button -->
+                            <button id="resolution-toggle" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors hidden">
+                                <i class="fas fa-cog mr-2"></i>
+                                <span id="current-resolution-text">Kualitas Video</span>
+                                <i class="fas fa-chevron-down ml-2 transition-transform duration-300" id="resolution-arrow"></i>
+                            </button>
+                            
+                            <!-- Next Episode Button -->
+                            <button id="next-episode-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors hidden">
+                                Episode Selanjutnya
+                                <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Resolution Dropdown -->
+                    <div id="resolution-dropdown" class="resolution-dropdown mt-2 bg-gray-800 rounded-lg">
+                        <div class="p-4">
+                            <h3 class="text-lg font-bold text-white mb-3">
+                                <i class="fas fa-cog text-red-500 mr-2"></i>
+                                Pilih Kualitas Video
+                            </h3>
+                            <div class="resolution-grid">
+                                <div id="resolution-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pr-2">
+                                    <!-- Resolution options will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Episode List -->
+                <div class="lg:col-span-1">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h3 class="text-xl font-bold text-white mb-4">
+                            <i class="fas fa-list text-red-500 mr-2"></i>
+                            Daftar Episode
+                        </h3>
+                        <div id="episode-container" class="max-h-96 overflow-y-auto space-y-2">
+                            <!-- Loading skeleton -->
+                            <div class="animate-pulse space-y-2">
+                                <div class="h-10 bg-gray-700 rounded"></div>
+                                <div class="h-10 bg-gray-700 rounded"></div>
+                                <div class="h-10 bg-gray-700 rounded"></div>
+                                <div class="h-10 bg-gray-700 rounded"></div>
+                                <div class="h-10 bg-gray-700 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anime Details Section -->
+            <div id="anime-details" class="mt-8 bg-gray-800 rounded-lg p-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Anime Image -->
+                    <div class="md:col-span-1">
+                        <img id="anime-image" src="" alt="Anime Image" class="w-full rounded-lg shadow-lg" />
+                    </div>
+                    
+                    <!-- Anime Information -->
+                    <div class="md:col-span-3 space-y-4">
+                        <h2 id="anime-title" class="text-3xl font-bold text-white mb-4"></h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <div id="anime-status" class="text-gray-300"></div>
+                                <div id="anime-type" class="text-gray-300"></div>
+                                <div id="anime-source" class="text-gray-300"></div>
+                                <div id="anime-studio" class="text-gray-300"></div>
+                                <div id="anime-released" class="text-gray-300"></div>
+                                <div id="anime-season" class="text-gray-300"></div>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div id="anime-total-episodes" class="text-gray-300"></div>
+                                <div id="anime-japanese" class="text-gray-300"></div>
+                                <div id="anime-english" class="text-gray-300"></div>
+                                <div id="anime-synonyms" class="text-gray-300"></div>
+                                <div id="anime-genres" class="text-gray-300"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="anime-description" class="text-gray-300 mt-4 leading-relaxed"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Search Results Modal -->
+    <div id="searchModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-6xl w-full max-h-96 overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-white">Hasil Pencarian</h3>
+                    <button id="closeSearch" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="searchResults" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <!-- Search results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-black text-white py-8">
+        <div class="container mx-auto px-4 text-center">
+            <div class="mb-4">
+                <h3 class="text-2xl font-bold text-red-600 mb-2">Shienime</h3>
+                <p class="text-gray-400">Platform streaming anime terbaik di Indonesia</p>
+            </div>
+            <div class="flex justify-center space-x-6 mb-4">
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-facebook text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-twitter text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-instagram text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-youtube text-2xl"></i>
+                </a>
+            </div>
+            <p class="text-gray-400 text-sm">&copy; 2024 Shienime. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // API Base URL
+        const API_BASE_URL = '/api';
+
+        // Global variables
+        let currentEpisodeId = null;
+        let availableResolutions = [];
+        let currentResolution = null;
+        let allEpisodes = [];
+        let currentEpisodeIndex = -1;
+
+        // Elements
+        const videoContainer = document.getElementById('video-container');
+        const episodeContainer = document.getElementById('episode-container');
+        const animeDetailsContainer = document.getElementById('anime-details');
+        const searchModal = document.getElementById('searchModal');
+        const searchResults = document.getElementById('searchResults');
+        const closeSearch = document.getElementById('closeSearch');
+
+        // Desktop elements
+        const resolutionToggle = document.getElementById('resolution-toggle');
+        const resolutionArrow = document.getElementById('resolution-arrow');
+        const currentResolutionText = document.getElementById('current-resolution-text');
+        const prevEpisodeBtn = document.getElementById('prev-episode-btn');
+        const nextEpisodeBtn = document.getElementById('next-episode-btn');
+
+        // Mobile elements
+        const resolutionToggleMobile = document.getElementById('resolution-toggle-mobile');
+        const resolutionArrowMobile = document.getElementById('resolution-arrow-mobile');
+        const currentResolutionTextMobile = document.getElementById('current-resolution-text-mobile');
+        const prevEpisodeBtnMobile = document.getElementById('prev-episode-btn-mobile');
+        const nextEpisodeBtnMobile = document.getElementById('next-episode-btn-mobile');
+
+        const resolutionDropdown = document.getElementById('resolution-dropdown');
+        const resolutionContainer = document.getElementById('resolution-container');
+
+        // Theme management
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        let isDark = true;
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            if (isDark) {
+                body.className = 'theme-dark transition-colors duration-300';
+                themeToggle.innerHTML = '<i class="fas fa-moon text-white"></i>';
+                document.querySelector('nav').className = 'fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md';
+                document.querySelector('main').className = 'pt-20 min-h-screen bg-gray-900';
+            } else {
+                body.className = 'theme-light transition-colors duration-300';
+                themeToggle.innerHTML = '<i class="fas fa-sun text-pink-600"></i>';
+                document.querySelector('nav').className = 'fixed top-0 w-full z-50 bg-pink-100/90 backdrop-blur-md';
+                document.querySelector('main').className = 'pt-20 min-h-screen bg-pink-50';
+            }
+        });
+
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+        const closeMobileMenu = document.getElementById('closeMobileMenu');
+        const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+        const mobileSearchBar = document.getElementById('mobileSearchBar');
+
+        function openMobileMenu() {
+            mobileMenu.classList.add('open');
+            mobileMenuOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenuFunc() {
+            mobileMenu.classList.remove('open');
+            mobileMenuOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        mobileMenuBtn.addEventListener('click', openMobileMenu);
+        closeMobileMenu.addEventListener('click', closeMobileMenuFunc);
+        mobileMenuOverlay.addEventListener('click', closeMobileMenuFunc);
+
+        // Mobile search toggle
+        mobileSearchBtn.addEventListener('click', () => {
+            mobileSearchBar.classList.toggle('hidden');
+            if (!mobileSearchBar.classList.contains('hidden')) {
+                document.getElementById('mobileSearchInput').focus();
+            }
+        });
+
+        // Resolution dropdown toggle (both desktop and mobile)
+        function toggleResolutionDropdown() {
+            const isOpen = resolutionDropdown.classList.contains('open');
+            if (isOpen) {
+                resolutionDropdown.classList.remove('open');
+                resolutionArrow.classList.remove('arrow-rotate');
+                resolutionArrowMobile.classList.remove('arrow-rotate');
+            } else {
+                resolutionDropdown.classList.add('open');
+                resolutionArrow.classList.add('arrow-rotate');
+                resolutionArrowMobile.classList.add('arrow-rotate');
+            }
+        }
+
+        resolutionToggle.addEventListener('click', toggleResolutionDropdown);
+        resolutionToggleMobile.addEventListener('click', toggleResolutionDropdown);
+
+        // Episode navigation functions
+        function goToPreviousEpisode() {
+            if (currentEpisodeIndex < allEpisodes.length - 1) {
+                const prevEpisode = allEpisodes[currentEpisodeIndex + 1];
+                loadVideo(prevEpisode.id);
+                updateUrl(prevEpisode.id);
+                highlightActiveEpisode(currentEpisodeIndex + 1);
+                updateEpisodeButtons();
+            }
+        }
+
+        function goToNextEpisode() {
+            if (currentEpisodeIndex > 0) {
+                const nextEpisode = allEpisodes[currentEpisodeIndex - 1];
+                loadVideo(nextEpisode.id);
+                updateUrl(nextEpisode.id);
+                highlightActiveEpisode(currentEpisodeIndex - 1);
+                updateEpisodeButtons();
+            }
+        }
+
+        // Episode navigation event listeners
+        prevEpisodeBtn.addEventListener('click', goToPreviousEpisode);
+        prevEpisodeBtnMobile.addEventListener('click', goToPreviousEpisode);
+        nextEpisodeBtn.addEventListener('click', goToNextEpisode);
+        nextEpisodeBtnMobile.addEventListener('click', goToNextEpisode);
+
+        // Search functionality
+        function handleSearch(event) {
+            event.preventDefault();
+            const searchInput = event.target.querySelector('input');
+            const query = searchInput.value.trim();
+            
+            if (query.length < 2) {
+                alert('Masukkan minimal 2 karakter untuk pencarian');
+                return;
+            }
+
+            // Close mobile search bar after search
+            mobileSearchBar.classList.add('hidden');
+            
+            searchAnime(query);
+        }
+
+        closeSearch.addEventListener('click', () => {
+            searchModal.classList.add('hidden');
+        });
+
+        // Close search modal when clicking outside
+        searchModal.addEventListener('click', (e) => {
+            if (e.target === searchModal) {
+                searchModal.classList.add('hidden');
+            }
+        });
+
+        async function searchAnime(query) {
+            try {
+                searchModal.classList.remove('hidden');
+                searchResults.innerHTML = '<div class="col-span-full text-center text-white"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</div>';
+                
+                const response = await fetch(`${API_BASE_URL}/search?s=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    searchResults.innerHTML = '<div class="col-span-full text-center text-white">Tidak ada hasil ditemukan untuk "' + query + '"</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = data.map(anime => `
+                    <div class="anime-card card-hover cursor-pointer" onclick="goToStreaming('${anime.id}')">
+                        <img src="${anime.image}" alt="${anime.title}" class="w-full h-full object-cover">
+                        <div class="overlay">
+                            <div class="absolute bottom-2 left-2 right-2">
+                                <h4 class="text-white text-sm font-semibold truncate mb-1">${anime.title}</h4>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-yellow-400 text-xs">
+                                        <i class="fas fa-star"></i> ${anime.score || 'N/A'}
+                                    </span>
+                                    <span class="text-gray-300 text-xs">${anime.genres ? anime.genres.slice(0, 1).join('') : 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                searchResults.innerHTML = '<div class="col-span-full text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>Error saat mencari anime</div>';
+            }
+        }
+
+        function goToStreaming(animeId) {
+            // Close search modal
+            searchModal.classList.add('hidden');
+            // Redirect to streaming page with the first episode
+            window.location.href = `streaming.html?id=${animeId}-episode-1`;
+        }
+
+        // Function to handle errors
+        function handleError(container, message) {
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-32">
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                        <p class="text-red-500">${message}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Function to get URL parameter
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Function to clean up the anime ID by removing "-episode-X"
+        function cleanAnimeId(animeId) {
+            // Specific replacements
+            animeId = animeId.replace(/^re-zero-kara-hajimeru-isekai-seikatsu-season-3$/, 'rezerokara-hajimeru-isekai-seikatsu-season-3');
+            animeId = animeId.replace(/^sengoku-youko-part-2$/, 'sengoku-youko-senma-konton-hen');
+            animeId = animeId.replace(/^seirei-gensouki-season-2$/, 'seirei-gensouki-s2');
+
+            // General cleanup for episodes
+            return animeId.replace(/-episode-\d+$/, '');
+        }
+
+        // Function to update episode navigation buttons
+        function updateEpisodeButtons() {
+            const buttons = [prevEpisodeBtn, prevEpisodeBtnMobile];
+            const nextButtons = [nextEpisodeBtn, nextEpisodeBtnMobile];
+
+            // Show/hide previous episode button
+            if (currentEpisodeIndex < allEpisodes.length - 1) {
+                buttons.forEach(btn => btn.classList.remove('hidden'));
+            } else {
+                buttons.forEach(btn => btn.classList.add('hidden'));
+            }
+
+            // Show/hide next episode button
+            if (currentEpisodeIndex > 0) {
+                nextButtons.forEach(btn => btn.classList.remove('hidden'));
+            } else {
+                nextButtons.forEach(btn => btn.classList.add('hidden'));
+            }
+        }
+
+        // Function to load available resolutions
+        async function loadAvailableResolutions(episodeId) {
+            try {
+                console.log('Loading resolutions for episode:', episodeId);
+                const response = await fetch(`${API_BASE_URL}/anime/episode/${episodeId}`);
+                const data = await response.json();
+
+                if (data.availableOptions && data.availableOptions.length > 0) {
+                    availableResolutions = data.availableOptions;
+                    currentResolution = data.defaultOption || data.availableOptions[0];
+                    
+                    // Show resolution toggle buttons
+                    resolutionToggle.classList.remove('hidden');
+                    resolutionToggleMobile.classList.remove('hidden');
+                    
+                    // Update current resolution text
+                    currentResolutionText.textContent = currentResolution.name;
+                    currentResolutionTextMobile.textContent = currentResolution.name.replace(/\s+/g, '').slice(0, 8); // Shorter for mobile
+                    
+                    // Populate resolution options
+                    resolutionContainer.innerHTML = availableResolutions.map(option => `
+                        <button 
+                            class="resolution-item px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium border-2 border-gray-600 transition-all ${option.isDefault ? 'active' : ''}"
+                            data-nume="${option.nume}"
+                            onclick="changeResolution('${option.nume}', this)"
+                        >
+                            <i class="fas fa-video mr-2"></i>
+                            ${option.name}
+                        </button>
+                    `).join('');
+                    
+                    console.log('Available resolutions:', availableResolutions);
+                    return true;
+                } else {
+                    console.log('No resolutions found, hiding toggle');
+                    resolutionToggle.classList.add('hidden');
+                    resolutionToggleMobile.classList.add('hidden');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error loading resolutions:', error);
+                resolutionToggle.classList.add('hidden');
+                resolutionToggleMobile.classList.add('hidden');
+                return false;
+            }
+        }
+
+        // Function to change resolution
+        async function changeResolution(nume, buttonElement) {
+            try {
+                // Update button states
+                document.querySelectorAll('.resolution-item').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                buttonElement.classList.add('active');
+
+                // Update current resolution text
+                const selectedResolution = availableResolutions.find(r => r.nume === nume);
+                if (selectedResolution) {
+                    currentResolutionText.textContent = selectedResolution.name;
+                    currentResolutionTextMobile.textContent = selectedResolution.name.replace(/\s+/g, '').slice(0, 8);
+                }
+
+                // Close dropdown
+                resolutionDropdown.classList.remove('open');
+                resolutionArrow.classList.remove('arrow-rotate');
+                resolutionArrowMobile.classList.remove('arrow-rotate');
+
+                // Show loading in video container
+                videoContainer.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin text-4xl text-red-500 mb-4"></i>
+                        <p class="text-white">Memuat video dengan kualitas ${buttonElement.textContent.trim()}...</p>
+                    </div>
+                `;
+
+                console.log('Changing resolution to nume:', nume);
+                const response = await fetch(`${API_BASE_URL}/anime/episode/${currentEpisodeId}/resolution/${nume}`);
+                const data = await response.json();
+
+                if (data.linkvid && data.success) {
+                    videoContainer.innerHTML = `
+                        <iframe 
+                            src="${data.linkvid}" 
+                            allowfullscreen 
+                            referrerpolicy="no-referrer">
+                        </iframe>
+                    `;
+                    
+                    // Update current resolution
+                    currentResolution = availableResolutions.find(r => r.nume === nume);
+                    console.log('Video loaded successfully with resolution:', currentResolution?.name);
+                } else {
+                    handleError(videoContainer, 'Gagal memuat video dengan kualitas tersebut.');
+                }
+            } catch (error) {
+                console.error('Error changing resolution:', error);
+                handleError(videoContainer, 'Gagal mengganti kualitas video.');
+            }
+        }
+
+        // Function to load video with default resolution
+        async function loadVideo(episodeId) {
+            try {
+                currentEpisodeId = episodeId;
+                
+                videoContainer.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin text-4xl text-red-500 mb-4"></i>
+                        <p class="text-white">Memuat video dan opsi kualitas...</p>
+                    </div>
+                `;
+
+                // Load available resolutions first
+                const hasResolutions = await loadAvailableResolutions(episodeId);
+                
+                if (hasResolutions && currentResolution) {
+                    // Load video with default resolution
+                    console.log('Loading video with default resolution:', currentResolution.name);
+                    const response = await fetch(`${API_BASE_URL}/anime/episode/${episodeId}/resolution/${currentResolution.nume}`);
+                    const data = await response.json();
+
+                    if (data.linkvid && data.success) {
+                        videoContainer.innerHTML = `
+                            <iframe 
+                                src="${data.linkvid}" 
+                                allowfullscreen 
+                                referrerpolicy="no-referrer">
+                            </iframe>
+                        `;
+                        console.log('Video loaded successfully');
+                    } else {
+                        handleError(videoContainer, 'Video tidak ditemukan.');
+                    }
+                } else {
+                    // Fallback to old method if no resolutions found
+                    console.log('Using fallback method');
+                    const response = await fetch(`${API_BASE_URL}/anime/episode/${episodeId}/resolution/3`);
+                    const data = await response.json();
+
+                    if (data.linkvid) {
+                        videoContainer.innerHTML = `
+                            <iframe 
+                                src="${data.linkvid}" 
+                                allowfullscreen 
+                                referrerpolicy="no-referrer">
+                            </iframe>
+                        `;
+                    } else {
+                        handleError(videoContainer, 'Video tidak ditemukan.');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading video:', error);
+                handleError(videoContainer, 'Gagal memuat video.');
+            }
+        }
+
+        // Function to load episodes
+        async function loadEpisodes(animeId) {
+            try {
+                const cleanedAnimeId = cleanAnimeId(animeId);
+                const response = await fetch(`${API_BASE_URL}/anime/${cleanedAnimeId}`);
+                const data = await response.json();
+                allEpisodes = data.episodes;
+
+                episodeContainer.innerHTML = '';
+                allEpisodes.forEach((episode, index) => {
+                    const episodeItem = document.createElement('div');
+                    episodeItem.className = 'episode-item bg-gray-700 hover:bg-gray-600 rounded-lg p-3 cursor-pointer text-white font-semibold transition-colors';
+                    episodeItem.textContent = `Episode ${episode.number}`;
+                    episodeItem.dataset.episodeId = episode.id;
+
+                    episodeItem.addEventListener('click', () => {
+                        loadVideo(episode.id);
+                        updateUrl(episode.id);
+                        highlightActiveEpisode(index);
+                        updateEpisodeButtons();
+                    });
+
+                    episodeContainer.appendChild(episodeItem);
+                });
+
+                // Auto-select current episode if viewing specific episode
+                const currentParam = getUrlParameter('id');
+                if (currentParam) {
+                    const currentEpisodeIdx = allEpisodes.findIndex(ep => currentParam.includes(ep.id));
+                    if (currentEpisodeIdx >= 0) {
+                        currentEpisodeIndex = currentEpisodeIdx;
+                        highlightActiveEpisode(currentEpisodeIdx);
+                        updateEpisodeButtons();
+                    }
+                }
+            } catch (error) {
+                handleError(episodeContainer, 'Gagal memuat daftar episode.');
+            }
+        }
+
+        // Function to update URL
+        function updateUrl(episodeId) {
+            window.history.pushState({}, '', `?id=${episodeId}`);
+        }
+
+        // Function to highlight active episode
+        function highlightActiveEpisode(index) {
+            const episodes = document.querySelectorAll('.episode-item');
+            episodes.forEach(el => el.classList.remove('active'));
+            if (episodes[index]) {
+                episodes[index].classList.add('active');
+                currentEpisodeIndex = index;
+            }
+        }
+
+        // Function to load anime details
+        async function loadAnimeDetails(animeId) {
+            try {
+                const cleanedAnimeId = cleanAnimeId(animeId);
+                const response = await fetch(`${API_BASE_URL}/anime/${cleanedAnimeId}`);
+                const anime = await response.json();
+
+                // Display anime details
+                document.getElementById('anime-title').textContent = anime.title;
+                document.getElementById('anime-description').innerHTML = `<strong class="text-red-500">Description:</strong> ${anime.description}`;
+                document.getElementById('anime-genres').innerHTML = `<strong class="text-red-500">Genres:</strong> ${anime.genres.join(', ')}`;
+                document.getElementById('anime-japanese').innerHTML = `<strong class="text-red-500">Japanese:</strong> ${anime.details.Japanese || 'N/A'}`;
+                document.getElementById('anime-synonyms').innerHTML = `<strong class="text-red-500">Synonyms:</strong> ${anime.details.Synonyms || 'N/A'}`;
+                document.getElementById('anime-english').innerHTML = `<strong class="text-red-500">English:</strong> ${anime.details.English || 'N/A'}`;
+                document.getElementById('anime-status').innerHTML = `<strong class="text-red-500">Status:</strong> ${anime.details.Status || 'N/A'}`;
+                document.getElementById('anime-type').innerHTML = `<strong class="text-red-500">Type:</strong> ${anime.details.Type || 'N/A'}`;
+                document.getElementById('anime-source').innerHTML = `<strong class="text-red-500">Source:</strong> ${anime.details.Source || 'N/A'}`;
+                document.getElementById('anime-total-episodes').innerHTML = `<strong class="text-red-500">Total Episodes:</strong> ${anime.details["Total Episode"] || 'N/A'}`;
+                document.getElementById('anime-season').innerHTML = `<strong class="text-red-500">Season:</strong> ${anime.details.Season || 'N/A'}`;
+                document.getElementById('anime-studio').innerHTML = `<strong class="text-red-500">Studio:</strong> ${anime.details.Studio || 'N/A'}`;
+                document.getElementById('anime-released').innerHTML = `<strong class="text-red-500">Released:</strong> ${anime.details.Released || 'N/A'}`;
+
+                // Set the anime image
+                const animeImage = document.getElementById('anime-image');
+                animeImage.src = anime.image;
+                animeImage.alt = anime.title;
+
+                // Load episode list
+                loadEpisodes(cleanedAnimeId);
+            } catch (error) {
+                handleError(animeDetailsContainer, 'Gagal memuat detail anime.');
+            }
+        }
+
+        // Close mobile menu when clicking on links
+        document.querySelectorAll('#mobileMenu a').forEach(link => {
+            link.addEventListener('click', closeMobileMenuFunc);
+        });
+
+        // Initialize
+        const animeId = getUrlParameter('id');
+        if (animeId) {
+            loadAnimeDetails(animeId);
+            loadVideo(animeId);
+        } else {
+            handleError(videoContainer, 'Anime ID tidak ditemukan.');
+        }
+
+        // Global function to make it accessible from onclick
+        window.changeResolution = changeResolution;
+        window.goToStreaming = goToStreaming;
+    </script>
+</body>
+</html>

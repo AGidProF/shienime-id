@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shienime - Streaming Anime Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'sakura': {
+                            50: '#fdf2f8',
+                            100: '#fce7f3',
+                            200: '#fbcfe8',
+                            300: '#f9a8d4',
+                            400: '#f472b6',
+                            500: '#ec4899',
+                            600: '#db2777',
+                            700: '#be185d',
+                            800: '#9d174d',
+                            900: '#831843'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-gradient {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        }
+        .sakura-gradient {
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .sakura-card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(236, 72, 153, 0.25);
+        }
+        .anime-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            aspect-ratio: 3/4;
+        }
+        .anime-card .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .anime-card:hover .overlay {
+            opacity: 1;
+        }
+        .theme-dark {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .theme-light {
+            background: #fdf2f8;
+            color: #1e293b;
+        }
+        .mobile-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        .search-form {
+            position: relative;
+        }
+    </style>
+</head>
+<body class="theme-dark transition-colors duration-300">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-8">
+                    <h1 class="text-2xl font-bold text-red-600">Shienime</h1>
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:flex space-x-6">
+                        <a href="#" class="text-white hover:text-red-500 transition-colors">Home</a>
+                        <a href="jadwal-rilis.html" class="text-white hover:text-red-500 transition-colors">Jadwal Rilis</a>
+                        <a href="#" class="text-white hover:text-red-500 transition-colors">Genre</a>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Search Form -->
+                    <form class="search-form hidden md:block" onsubmit="handleSearch(event)">
+                        <input 
+                            type="text" 
+                            id="searchInput"
+                            placeholder="Cari anime..." 
+                            class="bg-gray-800 text-white px-4 py-2 rounded-full pl-10 focus:outline-none focus:ring-2 focus:ring-red-500 w-64"
+                        >
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </form>
+                    
+                    <!-- Mobile Search Button -->
+                    <button id="mobileSearchBtn" class="md:hidden p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-search text-white"></i>
+                    </button>
+                    
+                    <!-- Theme Toggle -->
+                    <button id="themeToggle" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-moon text-white"></i>
+                    </button>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="md:hidden p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-bars text-white"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Search Bar -->
+        <div id="mobileSearchBar" class="md:hidden bg-black/95 p-4 hidden">
+            <form class="search-form" onsubmit="handleSearch(event)">
+                <input 
+                    type="text" 
+                    id="mobileSearchInput"
+                    placeholder="Cari anime..." 
+                    class="w-full bg-gray-800 text-white px-4 py-2 rounded-full pl-10 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenuOverlay" class="fixed inset-0 z-40 bg-black/50 hidden md:hidden"></div>
+    
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 h-full w-80 bg-black/95 backdrop-blur-md z-50 md:hidden">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold text-red-600">Shienime</h2>
+                <button id="closeMobileMenu" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-times text-white"></i>
+                </button>
+            </div>
+            
+            <nav class="space-y-4">
+                <a href="#" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="jadwal-rilis.html" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-calendar"></i>
+                    <span>Jadwal Rilis</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 text-white hover:text-red-500 transition-colors p-3 rounded-lg hover:bg-gray-800">
+                    <i class="fas fa-tags"></i>
+                    <span>Genre</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-black/20"></div>
+        <div class="container mx-auto px-4 text-center z-10">
+            <h1 class="text-5xl md:text-7xl font-bold text-white mb-6">
+                Streaming Anime
+                <span class="text-red-500">Terbaru</span>
+            </h1>
+            <p class="text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
+                Nikmati koleksi anime terlengkap dengan kualitas HD. Streaming gratis tanpa batas!
+            </p>
+            <button class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full text-lg font-semibold transition-all transform hover:scale-105">
+                Mulai Menonton
+            </button>
+        </div>
+    </section>
+
+    <!-- Latest Anime Section -->
+    <section class="py-16 bg-gray-900">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-white mb-8">Anime Terbaru</h2>
+            <div id="animeList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <!-- Loading skeleton -->
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+                <!-- Repeat for 6 items -->
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+                <div class="animate-pulse">
+                    <div class="bg-gray-700 aspect-[3/4] rounded-lg"></div>
+                    <div class="h-4 bg-gray-700 rounded mt-2"></div>
+                    <div class="h-3 bg-gray-700 rounded mt-1 w-2/3"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search Results Section -->
+    <section id="searchResults" class="py-16 bg-gray-800 hidden">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-white">Hasil Pencarian</h2>
+                <button id="clearSearch" class="text-red-500 hover:text-red-400 transition-colors">
+                    <i class="fas fa-times mr-2"></i>Tutup
+                </button>
+            </div>
+            <div id="searchList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <!-- Search results will be populated here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-black text-white py-8">
+        <div class="container mx-auto px-4 text-center">
+            <div class="mb-4">
+                <h3 class="text-2xl font-bold text-red-600 mb-2">Shienime</h3>
+                <p class="text-gray-400">Platform streaming anime terbaik di Indonesia</p>
+            </div>
+            <div class="flex justify-center space-x-6 mb-4">
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-facebook text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-twitter text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-instagram text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fab fa-youtube text-2xl"></i>
+                </a>
+            </div>
+            <p class="text-gray-400 text-sm">&copy; 2024 Shienime. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // API Base URL
+        const API_BASE_URL = '/api';
+
+        // Theme management
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        let isDark = true;
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            if (isDark) {
+                body.className = 'theme-dark transition-colors duration-300';
+                themeToggle.innerHTML = '<i class="fas fa-moon text-white"></i>';
+                document.querySelector('nav').className = 'fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md';
+                document.querySelector('.hero-gradient').className = 'hero-gradient min-h-screen flex items-center justify-center relative overflow-hidden';
+            } else {
+                body.className = 'theme-light transition-colors duration-300';
+                themeToggle.innerHTML = '<i class="fas fa-sun text-pink-600"></i>';
+                document.querySelector('nav').className = 'fixed top-0 w-full z-50 bg-pink-100/90 backdrop-blur-md';
+                document.querySelector('.hero-gradient').className = 'sakura-gradient min-h-screen flex items-center justify-center relative overflow-hidden';
+            }
+        });
+
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+        const closeMobileMenu = document.getElementById('closeMobileMenu');
+        const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+        const mobileSearchBar = document.getElementById('mobileSearchBar');
+
+        function openMobileMenu() {
+            mobileMenu.classList.add('open');
+            mobileMenuOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenuFunc() {
+            mobileMenu.classList.remove('open');
+            mobileMenuOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        mobileMenuBtn.addEventListener('click', openMobileMenu);
+        closeMobileMenu.addEventListener('click', closeMobileMenuFunc);
+        mobileMenuOverlay.addEventListener('click', closeMobileMenuFunc);
+
+        // Mobile search toggle
+        mobileSearchBtn.addEventListener('click', () => {
+            mobileSearchBar.classList.toggle('hidden');
+            if (!mobileSearchBar.classList.contains('hidden')) {
+                document.getElementById('mobileSearchInput').focus();
+            }
+        });
+
+        // Search functionality
+        const searchResults = document.getElementById('searchResults');
+        const searchList = document.getElementById('searchList');
+        const clearSearch = document.getElementById('clearSearch');
+
+        function handleSearch(event) {
+            event.preventDefault();
+            const searchInput = event.target.querySelector('input');
+            const query = searchInput.value.trim();
+            
+            if (query.length < 2) {
+                alert('Masukkan minimal 2 karakter untuk pencarian');
+                return;
+            }
+
+            // Close mobile search bar after search
+            mobileSearchBar.classList.add('hidden');
+            
+            searchAnime(query);
+        }
+
+        clearSearch.addEventListener('click', () => {
+            searchResults.classList.add('hidden');
+            document.getElementById('searchInput').value = '';
+            document.getElementById('mobileSearchInput').value = '';
+        });
+
+        async function searchAnime(query) {
+            try {
+                searchResults.classList.remove('hidden');
+                searchList.innerHTML = '<div class="col-span-full text-center text-white"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</div>';
+                
+                // Scroll to search results
+                searchResults.scrollIntoView({ behavior: 'smooth' });
+                
+                const response = await fetch(`${API_BASE_URL}/search?s=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    searchList.innerHTML = '<div class="col-span-full text-center text-white">Tidak ada hasil ditemukan untuk "' + query + '"</div>';
+                    return;
+                }
+
+                searchList.innerHTML = data.map(anime => `
+                    <div class="anime-card card-hover cursor-pointer" onclick="goToStreaming('${anime.id}')">
+                        <img src="${anime.image}" alt="${anime.title}" class="w-full h-full object-cover">
+                        <div class="overlay">
+                            <div class="absolute bottom-2 left-2 right-2">
+                                <h3 class="text-white font-semibold text-sm mb-1">${anime.title}</h3>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-yellow-400 text-xs">
+                                        <i class="fas fa-star"></i> ${anime.score || 'N/A'}
+                                    </span>
+                                    <span class="text-gray-300 text-xs">${anime.genres.slice(0, 2).join(', ')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                searchList.innerHTML = '<div class="col-span-full text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>Error saat mencari anime</div>';
+            }
+        }
+
+        // Load latest anime
+        async function loadLatestAnime() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/anime`);
+                const data = await response.json();
+                
+                const animeList = document.getElementById('animeList');
+                animeList.innerHTML = data.slice(0, 12).map(anime => `
+                    <div class="anime-card card-hover cursor-pointer" onclick="goToStreaming('${anime.id}')">
+                        <img src="/api/anime/image/${anime.id}" alt="${anime.title}" class="w-full h-full object-cover">
+                        <div class="overlay">
+                            <div class="absolute bottom-2 left-2 right-2">
+                                <h3 class="text-white font-semibold text-sm mb-1">${anime.title}</h3>
+                                <span class="text-blue-400 text-xs">${anime.episode || 'Latest'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('animeList').innerHTML = '<div class="col-span-full text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>Error loading anime</div>';
+            }
+        }
+
+        function goToStreaming(animeId) {
+            // Redirect to streaming page with the first episode
+            window.location.href = `streaming.html?id=${animeId}-episode-1`;
+        }
+
+        // Close mobile menu when clicking on links
+        document.querySelectorAll('#mobileMenu a').forEach(link => {
+            link.addEventListener('click', closeMobileMenuFunc);
+        });
+
+        // Initialize
+        loadLatestAnime();
+    </script>
+</body>
+</html>
