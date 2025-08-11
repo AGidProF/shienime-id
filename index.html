@@ -401,7 +401,7 @@
                 const animeList = document.getElementById('animeList');
                 animeList.innerHTML = data.slice(0, 12).map(anime => `
                     <div class="anime-card card-hover cursor-pointer" onclick="goToStreaming('${anime.id}')">
-                        <img src="/api/anime/image/${anime.id}" alt="${anime.title}" class="w-full h-full object-cover">
+                        <img src="https://cielz-ramesuru.hf.space/api/anime/image/${anime.id}" alt="${anime.title}" class="w-full h-full object-cover">
                         <div class="overlay">
                             <div class="absolute bottom-2 left-2 right-2">
                                 <h3 class="text-white font-semibold text-sm mb-1">${anime.title}</h3>
@@ -431,3 +431,4 @@
 </body>
 
 </html>
+
