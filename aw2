@@ -988,7 +988,10 @@ app.post('/proxies/cache/reset', async (req, res) => {
     resetCount: cache.stats.resetCount
   });
 });
-
+// Tambahkan di server Anda
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
 // Health check
 app.get('/health', async (req, res) => {
   const stats = proxyManager.getStats();
