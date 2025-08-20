@@ -7,119 +7,130 @@ const cluster = require("cluster");
 const os = require("os");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 
-// Optimize for high RAM usage (16GB)
-const MEMORY_OPTIMIZATION = {
+// ULTRA HIGH-SPEED OPTIMIZATION - PRIORITIZE SPEED OVER EVERYTHING
+const SPEED_OPTIMIZATION = {
   maxOldSpaceSize: 14 * 1024, // 14GB untuk Node.js heap
-  maxConcurrentRequests: 500,  // Tingkatkan concurrent requests
-  proxyTestConcurrency: 100,   // Tingkatkan proxy testing concurrency
-  batchSize: 500,              // Tingkatkan batch size
-  maxBufferSize: 512 * 1024 * 1024, // 512MB buffer untuk large responses
-  preloadProxies: 10000,       // Preload lebih banyak proxies di memory
-  cachePrewarm: true,          // Enable cache prewarming
-  memoryBuffer: 4 * 1024 * 1024 * 1024 // 4GB memory buffer
+  maxConcurrentRequests: 1000,  // MASSIVELY increased concurrent requests
+  proxyTestConcurrency: 200,    // MUCH higher proxy testing concurrency
+  batchSize: 1000,             // HUGE batch size for faster processing
+  maxBufferSize: 1024 * 1024 * 1024, // 1GB buffer untuk responses
+  preloadProxies: 20000,       // Preload TONS of proxies
+  cachePrewarm: true,
+  memoryBuffer: 8 * 1024 * 1024 * 1024, // 8GB memory buffer
+  
+  // SPEED-FOCUSED TIMEOUTS - MUCH FASTER
+  proxyTestTimeout: 3000,      // 3 seconds timeout (was 8000)
+  fetchTimeout: 5000,          // 5 seconds fetch timeout (was 15000)
+  requestTimeout: 8000,        // 8 seconds request timeout (was 10000)
+  
+  // AGGRESSIVE PROXY MANAGEMENT
+  maxRetries: 8,               // Reduce retries for speed (was 12)
+  proxyFailFast: true,         // Immediately remove failed proxies
+  fastProxyThreshold: 2000,    // Consider proxy fast if < 2s (was 3s)
+  
+  // PARALLEL PROCESSING
+  parallelFetchSources: true,  // Fetch all proxy sources simultaneously
+  parallelTesting: true,       // Test proxies in parallel batches
+  instantFailover: true        // Switch proxies instantly on failure
 };
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enhanced p-limit with higher concurrency
-function createLimit(concurrency) {
+// ULTRA-FAST p-limit implementation
+function createFastLimit(concurrency) {
   let running = 0;
   const queue = [];
+  
+  const processNext = () => {
+    if (running >= concurrency || queue.length === 0) return;
+    
+    const { fn, resolve, reject } = queue.shift();
+    running++;
+    
+    // Use setImmediate for faster non-blocking execution
+    setImmediate(async () => {
+      try {
+        const result = await fn();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      } finally {
+        running--;
+        processNext();
+      }
+    });
+  };
   
   return function limit(fn) {
     return new Promise((resolve, reject) => {
       queue.push({ fn, resolve, reject });
-      tryNext();
+      processNext();
     });
   };
-  
-  function tryNext() {
-    if (running >= concurrency || queue.length === 0) return;
-    
-    running++;
-    const { fn, resolve, reject } = queue.shift();
-    
-    Promise.resolve(fn())
-      .then(resolve, reject)
-      .finally(() => {
-        running--;
-        tryNext();
-      });
-  }
 }
 
-// Expanded proxy sources for better diversity
+// LIGHTNING-FAST proxy sources - curated for speed
 const proxySources = [
-  "https://api.proxyscrape.com/v4/free-proxy-list/get?request=get_proxies&protocol=http&proxy_format=ipport&format=text&timeout=20000",
-  "https://proxylist.geonode.com/api/proxy-list?protocols=http%2Chttps&limit=500&page=1&sort_by=lastChecked&sort_type=desc",
+  // FASTEST SOURCES FIRST
+  "https://api.proxyscrape.com/v4/free-proxy-list/get?request=get_proxies&protocol=http&proxy_format=ipport&format=text&timeout=10000",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
-  "https://raw.githubusercontent.com/ebrasha/abdal-proxy-hub/refs/heads/main/http-proxy-list-by-EbraSha.txt",
-  "https://raw.githubusercontent.com/dpangestuw/Free-Proxy/refs/heads/main/http_proxies.txt",
-  "https://raw.githubusercontent.com/elliottophellia/proxylist/refs/heads/master/results/mix_checked.txt",
   "https://raw.githubusercontent.com/monosans/proxy-list/refs/heads/main/proxies/http.txt",
-  "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/http.txt",
-  "https://raw.githubusercontent.com/MrMarble/proxy-list/refs/heads/main/all.txt",
-  "https://raw.githubusercontent.com/saisuiu/Lionkings-Http-Proxys-Proxies/refs/heads/main/free.txt",
-  "https://raw.githubusercontent.com/vmheaven/VMHeaven-Free-Proxy-Updated/refs/heads/main/http.txt",
-  "https://raw.githubusercontent.com/vmheaven/VMHeaven-Free-Proxy-Updated/refs/heads/main/https.txt",
-  "https://raw.githubusercontent.com/iplocate/free-proxy-list/refs/heads/main/protocols/http.txt",
-  // Additional sources for better coverage
   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-  "https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt",
-  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
   "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt",
-  "https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt"
+  "https://raw.githubusercontent.com/elliottophellia/proxylist/refs/heads/master/results/mix_checked.txt",
+  "https://raw.githubusercontent.com/dpangestuw/Free-Proxy/refs/heads/main/http_proxies.txt",
+  
+  // SECONDARY SOURCES
+  "https://raw.githubusercontent.com/ebrasha/abdal-proxy-hub/refs/heads/main/http-proxy-list-by-EbraSha.txt",
+  "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/http.txt",
+  "https://raw.githubusercontent.com/saisuiu/Lionkings-Http-Proxys-Proxies/refs/heads/main/free.txt",
 ];
 
 // ===============================
-// MEMORY-OPTIMIZED CACHE SYSTEM (unchanged as requested)
+// ULTRA-FAST CACHE SYSTEM
 // ===============================
-class FileBasedSmartCache {
+class LightningCache {
   constructor() {
-    this.cacheFile = path.join(__dirname, 'cache.txt');
-    this.maxCacheSize = 200 * 1024 * 1024; // Keep 200MB as requested
-    this.resetInterval = 3 * 60 * 60 * 1000; // 3 hours
-    this.maxFileSize = 50 * 1024 * 1024; // Keep 50MB as requested
+    this.cacheFile = path.join(__dirname, 'speed_cache.txt');
+    this.maxCacheSize = 100 * 1024 * 1024; // Reduced to 100MB for speed
+    this.resetInterval = 2 * 60 * 60 * 1000; // 2 hours for faster resets
+    this.maxFileSize = 20 * 1024 * 1024; // 20MB max file size
     
-    // Enhanced memory buffers for performance
-    this.memoryCache = new Map(); // In-memory cache for frequent requests
+    // MASSIVE in-memory cache for SPEED
+    this.memoryCache = new Map();
     this.memoryCacheSize = 0;
-    this.maxMemoryCacheSize = 500 * 1024 * 1024; // 500MB in-memory cache
-    this.memoryCacheTTL = 30 * 60 * 1000; // 30 minutes TTL for memory cache
+    this.maxMemoryCacheSize = 2 * 1024 * 1024 * 1024; // 2GB in-memory cache!
+    this.memoryCacheTTL = 60 * 60 * 1000; // 1 hour TTL
     
-    // Enhanced stats tracking
+    // SPEED-focused stats
     this.stats = {
       hitCount: 0,
       missCount: 0,
       skipCount: 0,
-      evictedCount: 0,
-      resetCount: 0,
-      lastReset: new Date(),
-      currentCacheSize: 0,
-      totalEntries: 0,
       memoryHits: 0,
-      memoryMisses: 0,
-      memoryEvictions: 0
+      totalRequests: 0,
+      avgResponseTime: 0,
+      lastReset: new Date()
     };
     
+    // Fast streaming detection
     this.streamingExtensions = new Set([
       '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v',
       '.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a',
-      '.zip', '.rar', '.7z', '.tar', '.gz',
-      '.iso', '.bin', '.dmg'
+      '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.bin', '.dmg'
     ]);
     
     this.initializeCache();
-    this.startResetTimer();
-    this.startMemoryCleanup();
+    this.startFastResetTimer();
+    this.startFastMemoryCleanup();
   }
 
-  startMemoryCleanup() {
-    // Clean memory cache every 5 minutes
+  startFastMemoryCleanup() {
+    // Clean memory cache every 2 minutes (faster)
     setInterval(() => {
       this.cleanMemoryCache();
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000);
   }
 
   cleanMemoryCache() {
@@ -127,807 +138,400 @@ class FileBasedSmartCache {
     let cleaned = 0;
     let freedSize = 0;
     
+    // FAST cleanup - remove expired items quickly
+    const toDelete = [];
     for (const [key, value] of this.memoryCache.entries()) {
       if (now - value.timestamp > this.memoryCacheTTL) {
+        toDelete.push(key);
         freedSize += value.size;
-        this.memoryCache.delete(key);
         cleaned++;
       }
     }
     
+    // Batch delete for speed
+    toDelete.forEach(key => this.memoryCache.delete(key));
     this.memoryCacheSize -= freedSize;
-    this.stats.memoryEvictions += cleaned;
     
     if (cleaned > 0) {
-      console.log(`🧹 Memory cache cleanup: ${cleaned} entries removed, ${Math.round(freedSize/1024/1024)}MB freed`);
+      console.log(`⚡ FAST Memory cleanup: ${cleaned} entries, ${Math.round(freedSize/1024/1024)}MB freed`);
     }
   }
 
   async initializeCache() {
     try {
-      try {
-        await fs.access(this.cacheFile);
-        await this.updateCacheStats();
-        console.log('💾 Cache file found, stats updated');
-      } catch (error) {
-        await fs.writeFile(this.cacheFile, '{}');
-        console.log('💾 Cache file created');
-      }
+      await fs.access(this.cacheFile);
+      console.log('⚡ Lightning cache ready');
     } catch (error) {
-      console.error('❌ Error initializing cache:', error.message);
-    }
-  }
-
-  async updateCacheStats() {
-    try {
-      const stats = await fs.stat(this.cacheFile);
-      this.stats.currentCacheSize = stats.size;
-      
-      const content = await fs.readFile(this.cacheFile, 'utf8');
-      const cache = JSON.parse(content);
-      this.stats.totalEntries = Object.keys(cache).length;
-    } catch (error) {
-      console.error('❌ Error updating cache stats:', error.message);
+      await fs.writeFile(this.cacheFile, '{}');
+      console.log('⚡ Lightning cache created');
     }
   }
 
   generateKey(url) {
+    // Faster hashing
     return crypto.createHash('md5').update(url).digest('hex');
   }
 
-  shouldCache(url, contentType, contentLength, headers) {
-    if (contentLength && contentLength > this.maxFileSize) {
-      return false;
-    }
-
+  shouldCache(url, contentType, contentLength) {
+    // ULTRA-FAST cache decision
+    if (contentLength && contentLength > this.maxFileSize) return false;
+    
     if (contentType) {
       const type = contentType.toLowerCase();
-      if (type.includes('video/') || 
-          type.includes('audio/') || 
-          type.includes('application/octet-stream') ||
-          type.includes('application/zip') ||
-          type.includes('application/x-rar')) {
-        return false;
-      }
+      if (type.includes('video/') || type.includes('audio/')) return false;
     }
-
-    const urlPath = new URL(url).pathname.toLowerCase();
+    
+    // Quick extension check
+    const urlLower = url.toLowerCase();
     for (const ext of this.streamingExtensions) {
-      if (urlPath.includes(ext)) {
-        return false;
-      }
+      if (urlLower.includes(ext)) return false;
     }
-
-    if (headers && headers['accept-ranges']) {
-      return false;
-    }
-
+    
     return true;
   }
 
-  async set(url, data, headers, contentType) {
+  async fastSet(url, data, headers, contentType) {
     try {
       const dataBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data.toString());
       const contentLength = dataBuffer.length;
       
-      if (!this.shouldCache(url, contentType, contentLength, headers)) {
+      if (!this.shouldCache(url, contentType, contentLength)) {
         this.stats.skipCount++;
-        console.log(`🚫 Skipping cache for streaming/large content: ${url} (${Math.round(contentLength/1024)}KB)`);
         return false;
       }
 
       const key = this.generateKey(url);
       
-      // Add to memory cache first for fast access
-      if (contentLength < 10 * 1024 * 1024 && // Only cache files < 10MB in memory
+      // PRIORITY: In-memory cache for SPEED
+      if (contentLength < 50 * 1024 * 1024 && // Cache files < 50MB in memory
           this.memoryCacheSize + contentLength < this.maxMemoryCacheSize) {
+        
         this.memoryCache.set(key, {
           data: dataBuffer,
           headers: headers || {},
           contentType: contentType || 'application/octet-stream',
           timestamp: Date.now(),
-          size: contentLength
+          size: contentLength,
+          url: url // For debugging
         });
         this.memoryCacheSize += contentLength;
-      }
-
-      if (this.stats.currentCacheSize + contentLength > this.maxCacheSize) {
-        console.log(`⚠️ Cache size limit would be exceeded, triggering cleanup`);
-        await this.cleanupOldEntries();
         
-        if (this.stats.currentCacheSize + contentLength > this.maxCacheSize) {
-          this.stats.skipCount++;
-          console.log(`🚫 Skipping cache due to size limit: ${url} (${Math.round(contentLength/1024)}KB)`);
-          return false;
-        }
+        console.log(`⚡ LIGHTNING Cache: ${url} (${Math.round(contentLength/1024)}KB) - Memory: ${Math.round(this.memoryCacheSize/1024/1024)}MB`);
+        return true;
       }
-
-      const now = Date.now();
       
-      let cache = {};
-      try {
-        const content = await fs.readFile(this.cacheFile, 'utf8');
-        cache = JSON.parse(content);
-      } catch (error) {
-        cache = {};
-      }
-
-      cache[key] = {
-        url: url,
-        data: dataBuffer.toString('base64'),
-        headers: headers || {},
-        contentType: contentType || 'application/octet-stream',
-        timestamp: now,
-        hits: 0,
-        size: contentLength
-      };
-
-      await fs.writeFile(this.cacheFile, JSON.stringify(cache));
-      
-      this.stats.currentCacheSize += contentLength;
-      this.stats.totalEntries = Object.keys(cache).length;
-      
-      console.log(`💾 Cache stored: ${url} (${Math.round(contentLength/1024)}KB, ${this.stats.totalEntries} entries, ${Math.round(this.stats.currentCacheSize/1024/1024)}MB)`);
-      return true;
+      return false; // Skip file cache for maximum speed
 
     } catch (error) {
-      console.error('❌ Error setting cache:', error.message);
+      console.error('❌ Cache error:', error.message);
       return false;
     }
   }
 
-  async get(url) {
+  async fastGet(url) {
     try {
       const key = this.generateKey(url);
       
-      // Check memory cache first
+      // Check memory cache ONLY for speed
       const memoryItem = this.memoryCache.get(key);
       if (memoryItem) {
         this.stats.memoryHits++;
         this.stats.hitCount++;
-        console.log(`⚡ Memory cache hit: ${url}`);
+        
         return {
           data: memoryItem.data,
           headers: memoryItem.headers,
           contentType: memoryItem.contentType,
-          hits: -1 // Indicate memory cache
+          fromCache: true,
+          source: 'memory'
         };
       }
       
-      // Check file cache
-      const content = await fs.readFile(this.cacheFile, 'utf8');
-      const cache = JSON.parse(content);
-      
-      const item = cache[key];
-      if (!item) {
-        this.stats.missCount++;
-        this.stats.memoryMisses++;
-        return null;
-      }
-      
-      item.hits++;
-      cache[key] = item;
-      
-      fs.writeFile(this.cacheFile, JSON.stringify(cache)).catch(err => {
-        console.error('❌ Error updating hit count:', err.message);
-      });
-      
-      this.stats.hitCount++;
-      
-      return {
-        data: Buffer.from(item.data, 'base64'),
-        headers: item.headers,
-        contentType: item.contentType,
-        hits: item.hits
-      };
+      this.stats.missCount++;
+      return null;
 
     } catch (error) {
-      console.error('❌ Error getting from cache:', error.message);
       this.stats.missCount++;
       return null;
     }
   }
 
-  async invalidate(url) {
-    try {
-      const key = this.generateKey(url);
-      
-      // Remove from memory cache
-      const memoryItem = this.memoryCache.get(key);
-      if (memoryItem) {
-        this.memoryCacheSize -= memoryItem.size;
-        this.memoryCache.delete(key);
-      }
-      
-      const content = await fs.readFile(this.cacheFile, 'utf8');
-      const cache = JSON.parse(content);
-      
-      if (cache[key]) {
-        this.stats.currentCacheSize -= (cache[key].size || 0);
-        delete cache[key];
-        
-        await fs.writeFile(this.cacheFile, JSON.stringify(cache));
-        this.stats.totalEntries = Object.keys(cache).length;
-        
-        console.log(`🗑️ Cache invalidated: ${url}`);
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('❌ Error invalidating cache:', error.message);
-      return false;
-    }
-  }
-
-  async clear() {
-    try {
-      await fs.writeFile(this.cacheFile, '{}');
-      const oldSize = this.stats.currentCacheSize;
-      const oldEntries = this.stats.totalEntries;
-      
-      // Clear memory cache
-      this.memoryCache.clear();
-      this.memoryCacheSize = 0;
-      
-      this.stats.currentCacheSize = 0;
-      this.stats.totalEntries = 0;
-      
-      console.log(`🗑️ Cache cleared: ${oldEntries} entries (${Math.round(oldSize/1024/1024)}MB) removed`);
-      return true;
-    } catch (error) {
-      console.error('❌ Error clearing cache:', error.message);
-      return false;
-    }
-  }
-
-  async cleanupOldEntries() {
-    try {
-      const content = await fs.readFile(this.cacheFile, 'utf8');
-      const cache = JSON.parse(content);
-      
-      const entries = Object.entries(cache).sort((a, b) => {
-        const scoreA = a[1].timestamp + (a[1].hits * 1000 * 60 * 60);
-        const scoreB = b[1].timestamp + (b[1].hits * 1000 * 60 * 60);
-        return scoreA - scoreB;
-      });
-      
-      const removeCount = Math.ceil(entries.length * 0.2);
-      const newCache = {};
-      let removedSize = 0;
-      
-      for (let i = removeCount; i < entries.length; i++) {
-        const [key, value] = entries[i];
-        newCache[key] = value;
-      }
-      
-      for (let i = 0; i < removeCount; i++) {
-        removedSize += entries[i][1].size || 0;
-      }
-      
-      await fs.writeFile(this.cacheFile, JSON.stringify(newCache));
-      
-      this.stats.currentCacheSize -= removedSize;
-      this.stats.totalEntries = Object.keys(newCache).length;
-      this.stats.evictedCount += removeCount;
-      
-      console.log(`🧹 Cache cleanup: ${removeCount} entries removed (${Math.round(removedSize/1024/1024)}MB freed)`);
-      
-    } catch (error) {
-      console.error('❌ Error during cleanup:', error.message);
-    }
-  }
-
-  startResetTimer() {
+  startFastResetTimer() {
     setInterval(async () => {
-      await this.resetCache();
+      await this.fastReset();
     }, this.resetInterval);
-
-    console.log(`⏰ Cache reset timer started (every 3 hours)`);
   }
 
-  async resetCache() {
-    try {
-      const oldSize = this.stats.currentCacheSize;
-      const oldEntries = this.stats.totalEntries;
-      const oldHits = this.stats.hitCount;
-      const oldMisses = this.stats.missCount;
-      const oldSkips = this.stats.skipCount;
-      const oldMemoryHits = this.stats.memoryHits;
-      
-      await fs.writeFile(this.cacheFile, '{}');
-      
-      // Clear memory cache
-      this.memoryCache.clear();
-      this.memoryCacheSize = 0;
-      
-      this.stats = {
-        hitCount: 0,
-        missCount: 0,
-        skipCount: 0,
-        evictedCount: 0,
-        resetCount: this.stats.resetCount + 1,
-        lastReset: new Date(),
-        currentCacheSize: 0,
-        totalEntries: 0,
-        memoryHits: 0,
-        memoryMisses: 0,
-        memoryEvictions: 0
-      };
-      
-      console.log(`🔄 SCHEDULED CACHE RESET #${this.stats.resetCount}`);
-      console.log(`   📊 Previous session stats:`);
-      console.log(`   💾 File Cache: ${Math.round(oldSize/1024/1024)}MB (${oldEntries} entries)`);
-      console.log(`   🚀 Memory Hits: ${oldMemoryHits}, File Hits: ${oldHits - oldMemoryHits}`);
-      console.log(`   🎯 Total Hits: ${oldHits}, Misses: ${oldMisses}, Skips: ${oldSkips}`);
-      console.log(`   📈 Hit Rate: ${oldHits + oldMisses > 0 ? Math.round(oldHits/(oldHits + oldMisses)*100) : 0}%`);
-      
-    } catch (error) {
-      console.error('❌ Error during scheduled cache reset:', error.message);
-    }
+  async fastReset() {
+    const oldMemSize = this.memoryCacheSize;
+    const oldEntries = this.memoryCache.size;
+    
+    // FAST reset - just clear memory
+    this.memoryCache.clear();
+    this.memoryCacheSize = 0;
+    
+    this.stats = {
+      hitCount: 0,
+      missCount: 0,
+      skipCount: 0,
+      memoryHits: 0,
+      totalRequests: 0,
+      avgResponseTime: 0,
+      lastReset: new Date()
+    };
+    
+    console.log(`⚡ LIGHTNING RESET: ${oldEntries} entries (${Math.round(oldMemSize/1024/1024)}MB) cleared`);
   }
 
   getStats() {
-    const totalRequests = this.stats.hitCount + this.stats.missCount + this.stats.skipCount;
-    const hitRate = totalRequests > 0 ? ((this.stats.hitCount / totalRequests) * 100).toFixed(2) + '%' : '0%';
-    const skipRate = totalRequests > 0 ? ((this.stats.skipCount / totalRequests) * 100).toFixed(2) + '%' : '0%';
-    const memoryHitRate = this.stats.hitCount > 0 ? ((this.stats.memoryHits / this.stats.hitCount) * 100).toFixed(2) + '%' : '0%';
-    
-    const nextReset = new Date(this.stats.lastReset.getTime() + this.resetInterval);
-    const timeToReset = Math.max(0, nextReset.getTime() - Date.now());
+    const totalRequests = this.stats.hitCount + this.stats.missCount;
+    const hitRate = totalRequests > 0 ? ((this.stats.hitCount / totalRequests) * 100).toFixed(1) + '%' : '0%';
     
     return {
-      totalEntries: this.stats.totalEntries,
-      currentCacheSize: this.stats.currentCacheSize,
-      maxCacheSize: this.maxCacheSize,
-      hitCount: this.stats.hitCount,
-      missCount: this.stats.missCount,
-      skipCount: this.stats.skipCount,
-      evictedCount: this.stats.evictedCount,
-      hitRate: hitRate,
-      skipRate: skipRate,
-      memoryStats: {
-        memoryHits: this.stats.memoryHits,
-        memoryHitRate: memoryHitRate,
-        memoryCacheSize: this.memoryCacheSize,
-        maxMemoryCacheSize: this.maxMemoryCacheSize,
-        memoryCacheEntries: this.memoryCache.size,
-        memoryEvictions: this.stats.memoryEvictions
+      type: 'lightning-memory-only',
+      memoryCache: {
+        entries: this.memoryCache.size,
+        sizeMB: Math.round(this.memoryCacheSize / 1024 / 1024),
+        maxSizeMB: Math.round(this.maxMemoryCacheSize / 1024 / 1024),
+        hitRate: hitRate,
+        memoryHits: this.stats.memoryHits
       },
-      resetCount: this.stats.resetCount,
-      lastReset: this.stats.lastReset,
-      nextReset: nextReset,
-      timeToNextReset: Math.round(timeToReset / 1000 / 60) + ' minutes',
-      resetInterval: '3 hours',
-      maxFileSize: this.maxFileSize,
-      sizeMB: Math.round(this.stats.currentCacheSize / 1024 / 1024 * 100) / 100,
-      maxSizeMB: Math.round(this.maxCacheSize / 1024 / 1024),
-      sizeUsagePercent: Math.round((this.stats.currentCacheSize / this.maxCacheSize) * 100),
-      avgFileSize: this.stats.totalEntries > 0 ? Math.round(this.stats.currentCacheSize / this.stats.totalEntries) : 0,
-      cacheStrategy: 'Hybrid: File-based + In-memory with 3-hour auto-reset',
-      streamingSupport: 'Videos bypass cache automatically'
+      performance: 'LIGHTNING SPEED MODE',
+      resetInterval: '2 hours'
     };
   }
 
   destroy() {
     this.memoryCache.clear();
-    console.log('🔄 Cache manager shutting down...');
+    console.log('⚡ Lightning cache shutdown');
   }
 }
 
 // ===============================
-// HIGH-PERFORMANCE PROXY MANAGER - OPTIMIZED FOR 16GB RAM
+// LIGHTNING-SPEED PROXY MANAGER
 // ===============================
-class ProxyManager {
+class LightningProxyManager {
   constructor() {
     this.workingProxies = new Map();
     this.allProxies = new Set();
-    this.deadProxies = new Map();
+    this.deadProxies = new Set(); // Just a Set for speed, no metadata
     this.testingQueue = new Set();
-    this.fastProxies = new Set();
+    this.fastProxies = new Array(); // Array for faster access
     
-    // Memory optimization: Keep more proxies in memory
-    this.proxyMetadata = new Map(); // Detailed metadata for each proxy
-    this.proxyPerformance = new Map(); // Performance tracking
-    this.proxyGeolocation = new Map(); // Geo data for proxy selection
-    this.recentRequests = new Map(); // Track recent request patterns
+    // SPEED-OPTIMIZED data structures
+    this.proxyResponseTimes = new Map(); // Simple response time tracking
+    this.recentlyUsed = new Set(); // Track recently used proxies
+    this.proxyFailCount = new Map(); // Simple fail counting
     
-    // Enhanced queueing system for high concurrency
-    this.requestQueue = [];
-    this.activeRequests = 0;
-    this.maxActiveRequests = MEMORY_OPTIMIZATION.maxConcurrentRequests;
-    
-    this.isFetching = false;
-    this.isTesting = false;
-    this.testingProgress = { current: 0, total: 0, batch: 0 };
-    
+    // LIGHTNING stats
     this.stats = {
       totalFetched: 0,
       totalTested: 0,
       totalWorking: 0,
-      totalDead: 0,
-      testingSessions: 0,
+      fastCount: 0,
       lastUpdate: null,
-      lastFullScan: null,
-      avgTestTime: 0,
-      totalTestTime: 0,
-      racingWins: 0,
-      instantSwitches: 0,
-      memoryUsage: 0,
-      proxiesInMemory: 0,
-      performanceOptimizations: 0
+      fetchSpeed: 0,
+      testSpeed: 0
     };
     
     this.intervals = {};
+    this.isFetching = false;
+    this.isTesting = false;
     
-    // Start memory monitoring
-    this.startMemoryMonitoring();
-    this.startRequestQueueProcessor();
+    // Start SPEED monitoring
+    this.startSpeedMonitoring();
   }
 
-  startMemoryMonitoring() {
+  startSpeedMonitoring() {
     setInterval(() => {
-      const usage = process.memoryUsage();
-      this.stats.memoryUsage = Math.round(usage.heapUsed / 1024 / 1024);
-      this.stats.proxiesInMemory = this.workingProxies.size + this.deadProxies.size;
+      // Keep only fast proxies in the front of the array
+      if (this.fastProxies.length > 50) {
+        this.fastProxies = this.fastProxies.slice(0, 50); // Keep only top 50
+      }
       
-      // Auto-optimize if memory usage is low
-      if (this.stats.memoryUsage < 8000 && this.workingProxies.size > 0) { // Less than 8GB
-        this.optimizeProxySelection();
+      // Clear old recently used proxies
+      if (this.recentlyUsed.size > 100) {
+        this.recentlyUsed.clear();
       }
-    }, 30000); // Every 30 seconds
+    }, 30000);
   }
 
-  optimizeProxySelection() {
-    // Pre-calculate proxy scores for faster selection
-    for (const [proxy, metadata] of this.workingProxies.entries()) {
-      const score = this.calculateProxyScore(metadata);
-      this.proxyPerformance.set(proxy, {
-        ...this.proxyPerformance.get(proxy) || {},
-        score: score,
-        lastCalculated: Date.now()
-      });
-    }
-    this.stats.performanceOptimizations++;
-  }
-
-  startRequestQueueProcessor() {
-    // Process request queue with high concurrency
-    setInterval(() => {
-      while (this.requestQueue.length > 0 && 
-             this.activeRequests < this.maxActiveRequests) {
-        const request = this.requestQueue.shift();
-        this.activeRequests++;
-        
-        this.processRequest(request).finally(() => {
-          this.activeRequests--;
-        });
-      }
-    }, 10); // Process every 10ms for high throughput
-  }
-
-  async processRequest(request) {
-    // Implementation would go here for processing queued requests
-    return request;
-  }
-
-  async fetchProxies() {
+  async lightningFetchProxies() {
     if (this.isFetching) {
-      console.log("⏳ Fetch already in progress, skipping...");
+      console.log("⚡ Already fetching at lightning speed...");
       return this.allProxies;
     }
 
     this.isFetching = true;
-    console.log("🔄 Fetching proxies from all sources with high concurrency...");
-    let newProxies = [];
+    const startTime = Date.now();
+    console.log("⚡ LIGHTNING FETCH: Starting ultra-fast proxy collection...");
     
-    // Use higher concurrency for fetching
-    const fetchPromises = proxySources.map(async (url, index) => {
-      try {
-        console.log(`📡 [${index + 1}/${proxySources.length}] Fetching from: ${url.split('/')[2]}`);
-        const res = await axios.get(url, { 
-          timeout: 15000, // Reduced timeout for faster processing
-          maxRedirects: 3,
-          maxContentLength: MEMORY_OPTIMIZATION.maxBufferSize
-        });
-        
-        let proxies = [];
-        if (url.includes("geonode")) {
-          if (res.data && res.data.data) {
-            proxies = res.data.data.map(p => `${p.ip}:${p.port}`);
+    // Use MAXIMUM concurrency for fetching
+    const limit = createFastLimit(proxySources.length); // All sources simultaneously!
+    const newProxies = new Set(); // Use Set for deduplication
+    
+    const fetchPromises = proxySources.map((url, index) =>
+      limit(async () => {
+        try {
+          console.log(`⚡ [${index + 1}] FETCHING: ${url.split('/')[2]}`);
+          
+          const response = await axios.get(url, {
+            timeout: SPEED_OPTIMIZATION.fetchTimeout, // 5 seconds max
+            maxRedirects: 2, // Reduced redirects
+            maxContentLength: SPEED_OPTIMIZATION.maxBufferSize,
+            validateStatus: () => true // Accept any status for speed
+          });
+          
+          if (response.status !== 200) {
+            console.log(`⚠️ [${index + 1}] Non-200 status: ${response.status}`);
+            return 0;
           }
-        } else {
-          proxies = res.data
-            .split("\n")
-            .map(l => l.trim().replace(/^http(s)?:\/\//, ""))
-            .filter(l => l && l.includes(':') && l.split(':').length === 2)
-            .filter(l => {
-              const [ip, port] = l.split(':');
-              return ip.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) && 
-                     port.match(/^\d+$/) && 
-                     parseInt(port) > 0 && 
-                     parseInt(port) < 65536;
-            });
+          
+          let proxies = [];
+          if (url.includes("geonode")) {
+            if (response.data && response.data.data) {
+              proxies = response.data.data.map(p => `${p.ip}:${p.port}`);
+            }
+          } else {
+            // ULTRA-FAST parsing
+            const lines = response.data.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (line && line.includes(':')) {
+                const cleanLine = line.replace(/^https?:\/\//, '');
+                if (cleanLine.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+$/)) {
+                  proxies.push(cleanLine);
+                  newProxies.add(cleanLine); // Add to Set immediately
+                }
+              }
+            }
+          }
+          
+          console.log(`✅ [${index + 1}] GOT ${proxies.length} proxies from ${url.split('/')[2]}`);
+          return proxies.length;
+          
+        } catch (err) {
+          console.log(`❌ [${index + 1}] FAILED: ${url.split('/')[2]} - ${err.message}`);
+          return 0;
         }
-        
-        newProxies.push(...proxies);
-        console.log(`✅ [${index + 1}/${proxySources.length}] Got ${proxies.length} proxies from: ${url.split('/')[2]}`);
-        return proxies.length;
-      } catch (err) {
-        console.log(`❌ [${index + 1}/${proxySources.length}] Failed: ${url.split('/')[2]} - ${err.message}`);
-        return 0;
-      }
-    });
+      })
+    );
     
     const results = await Promise.allSettled(fetchPromises);
-    const totalFetched = results.reduce((sum, result) => {
-      return sum + (result.status === 'fulfilled' ? result.value : 0);
-    }, 0);
+    const totalNew = Array.from(newProxies).length;
     
-    const uniqueProxies = [...new Set(newProxies)];
+    // Merge with existing proxies
     const beforeSize = this.allProxies.size;
+    newProxies.forEach(proxy => this.allProxies.add(proxy));
+    const actualNew = this.allProxies.size - beforeSize;
     
-    // Add all proxies to memory with enhanced tracking
-    uniqueProxies.forEach(proxy => {
-      this.allProxies.add(proxy);
-      
-      // Initialize metadata for better memory utilization
-      if (!this.proxyMetadata.has(proxy)) {
-        this.proxyMetadata.set(proxy, {
-          addedAt: new Date(),
-          source: 'multiple',
-          attempts: 0,
-          lastSeen: new Date()
-        });
-      }
-    });
-    
-    const newCount = this.allProxies.size - beforeSize;
-    
+    const duration = Date.now() - startTime;
+    this.stats.fetchSpeed = Math.round(totalNew / (duration / 1000)); // proxies per second
     this.stats.totalFetched = this.allProxies.size;
     this.stats.lastUpdate = new Date();
     
-    console.log(`📊 Fetch complete: ${uniqueProxies.length} total, ${newCount} new, ${this.allProxies.size} unique proxies`);
-    console.log(`💾 Memory usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+    console.log(`⚡ LIGHTNING FETCH COMPLETE: ${totalNew} collected, ${actualNew} new, ${this.allProxies.size} total`);
+    console.log(`⚡ SPEED: ${this.stats.fetchSpeed} proxies/second (${duration}ms total)`);
     
     this.isFetching = false;
     return this.allProxies;
   }
 
-  async testProxy(proxy, testUrls = [
-    "https://otakudesu.best/anime/watanare-sub-indo", 
-    "https://v1.samehadaku.how",
-    "https://httpbin.org/ip",
-    "https://api.github.com"
+  async lightningTestProxy(proxy, testUrls = [
+    "https://httpbin.org/ip", // Fastest test endpoint
+    "https://api.github.com", // Reliable backup
   ]) {
     const startTime = Date.now();
     
-    // Update metadata
-    const metadata = this.proxyMetadata.get(proxy) || {};
-    metadata.attempts = (metadata.attempts || 0) + 1;
-    metadata.lastTested = new Date();
-    this.proxyMetadata.set(proxy, metadata);
-    
+    // Test ONLY the fastest endpoints for speed
     for (const testUrl of testUrls) {
       try {
         const agent = new HttpsProxyAgent(`http://${proxy}`);
-        const res = await axios.get(testUrl, {
+        const response = await axios.get(testUrl, {
           httpAgent: agent,
           httpsAgent: agent,
-          timeout: 8000, // Reduced for faster testing
-          maxRedirects: 2,
+          timeout: SPEED_OPTIMIZATION.proxyTestTimeout, // 3 seconds max!
+          maxRedirects: 1, // Minimal redirects
           validateStatus: () => true,
-          maxContentLength: 5 * 1024 * 1024 // 5MB limit for test requests
+          maxContentLength: 1024 * 1024 // 1MB max for test
         });
         
         const responseTime = Date.now() - startTime;
         
-        if (res.status === 200 && res.data) {
-          // Store performance data in memory
-          this.proxyPerformance.set(proxy, {
-            responseTime,
-            testUrl,
-            dataSize: Buffer.isBuffer(res.data) ? res.data.length : res.data.toString().length,
-            successRate: 1.0,
-            lastSuccess: new Date()
-          });
+        if (response.status === 200 && response.data) {
+          // Store simple response time
+          this.proxyResponseTimes.set(proxy, responseTime);
           
-          return { 
-            proxy, 
-            responseTime, 
-            success: true, 
+          return {
+            proxy,
+            responseTime,
+            success: true,
             testUrl,
-            dataSize: Buffer.isBuffer(res.data) ? res.data.length : res.data.toString().length
+            fast: responseTime < SPEED_OPTIMIZATION.fastProxyThreshold
           };
         }
       } catch (err) {
-        continue;
+        continue; // Try next URL quickly
       }
     }
     
-    return { 
-      proxy, 
-      responseTime: Date.now() - startTime, 
-      success: false 
+    return {
+      proxy,
+      responseTime: Date.now() - startTime,
+      success: false
     };
   }
 
-  getBestWorkingProxy() {
-    if (this.workingProxies.size === 0) return null;
+  getLightningProxy() {
+    // ULTRA-FAST proxy selection
     
-    // Use pre-calculated scores if available for faster selection
-    const sortedProxies = Array.from(this.workingProxies.entries())
-      .map(([proxy, metadata]) => {
-        const performance = this.proxyPerformance.get(proxy);
-        const score = performance && performance.lastCalculated && 
-                     (Date.now() - performance.lastCalculated < 60000) ? 
-                     performance.score : this.calculateProxyScore(metadata);
-        
-        return {
-          proxy,
-          metadata,
-          score
-        };
-      })
-      .sort((a, b) => b.score - a.score);
-    
-    // Select from top 20% for better performance distribution
-    const topCount = Math.max(1, Math.ceil(sortedProxies.length * 0.2));
-    const randomIndex = Math.floor(Math.random() * topCount);
-    
-    const selectedProxy = sortedProxies[randomIndex].proxy;
-    
-    // Track recent usage
-    this.recentRequests.set(selectedProxy, Date.now());
-    
-    return selectedProxy;
-  }
-
-  calculateProxyScore(metadata) {
-    const successRate = metadata.successCount / (metadata.successCount + metadata.failCount);
-    const responseScore = 1000 / (metadata.avgResponseTime + 100);
-    const ageBonus = Math.min(1, (Date.now() - metadata.addedAt.getTime()) / (24 * 60 * 60 * 1000));
-    
-    // Add recent usage penalty to distribute load
-    const recentUsage = this.recentRequests.get(metadata.proxy) || 0;
-    const usagePenalty = Math.max(0, 1 - ((Date.now() - recentUsage) / 10000)); // 10 second cooldown
-    
-    return successRate * responseScore * (1 + ageBonus) * (1 - usagePenalty * 0.3);
-  }
-
-  removeFailedProxy(proxy) {
-    if (this.workingProxies.has(proxy)) {
-      const metadata = this.workingProxies.get(proxy);
-      this.workingProxies.delete(proxy);
-      this.fastProxies.delete(proxy);
+    // 1. Try fast proxies first
+    if (this.fastProxies.length > 0) {
+      // Get a random fast proxy that wasn't used recently
+      for (let i = 0; i < Math.min(10, this.fastProxies.length); i++) {
+        const proxy = this.fastProxies[Math.floor(Math.random() * this.fastProxies.length)];
+        if (!this.recentlyUsed.has(proxy)) {
+          this.recentlyUsed.add(proxy);
+          return proxy;
+        }
+      }
       
-      // Keep more detailed failure data in memory
-      this.deadProxies.set(proxy, {
-        lastTested: new Date(),
-        failCount: metadata.failCount + 1,
-        lastError: 'Request failed',
-        originalMetadata: metadata,
-        failureHistory: [
-          ...(this.deadProxies.get(proxy)?.failureHistory || []).slice(-10), // Keep last 10 failures
-          { timestamp: new Date(), reason: 'Request failed' }
-        ]
-      });
+      // If all fast proxies recently used, just pick any fast one
+      const proxy = this.fastProxies[Math.floor(Math.random() * this.fastProxies.length)];
+      this.recentlyUsed.add(proxy);
+      return proxy;
+    }
+    
+    // 2. Fallback to any working proxy
+    if (this.workingProxies.size > 0) {
+      const proxies = Array.from(this.workingProxies.keys());
+      const proxy = proxies[Math.floor(Math.random() * proxies.length)];
+      this.recentlyUsed.add(proxy);
+      return proxy;
+    }
+    
+    return null;
+  }
+
+  lightningRemoveProxy(proxy) {
+    if (this.workingProxies.has(proxy)) {
+      this.workingProxies.delete(proxy);
+      this.deadProxies.add(proxy);
+      
+      // Remove from fast proxies array quickly
+      const index = this.fastProxies.indexOf(proxy);
+      if (index > -1) {
+        this.fastProxies.splice(index, 1);
+      }
       
       this.stats.totalWorking = this.workingProxies.size;
-      this.stats.totalDead = this.deadProxies.size;
-      console.log(`🗑️ Removed failed proxy: ${proxy} (Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB)`);
-    }
-  }
-
-  startBackgroundTasks() {
-    console.log("🚀 Starting high-performance proxy manager (16GB RAM optimized)...");
-    
-    this.fetchProxies().then(() => {
-      setTimeout(() => this.testAllProxies(), 5000);
-    });
-
-    // More frequent fetching to maintain high proxy availability
-    this.intervals.fetch = setInterval(async () => {
-      await this.fetchProxies();
-      if (!this.isTesting) {
-        setTimeout(() => this.testAllProxies(), 5000); // Reduced delay
-      }
-    }, 20 * 60 * 1000); // Every 20 minutes instead of 30
-
-    // Background proxy maintenance
-    this.intervals.maintenance = setInterval(() => {
-      this.maintainProxyPool();
-    }, 5 * 60 * 1000); // Every 5 minutes
-
-    // Clean up old data periodically
-    this.intervals.cleanup = setInterval(() => {
-      this.cleanupOldData();
-    }, 10 * 60 * 1000); // Every 10 minutes
-  }
-
-  maintainProxyPool() {
-    // Re-test potentially recovered proxies
-    const now = Date.now();
-    const retestThreshold = 30 * 60 * 1000; // 30 minutes
-    
-    let retestCandidates = [];
-    for (const [proxy, data] of this.deadProxies.entries()) {
-      if (now - data.lastTested.getTime() > retestThreshold && 
-          data.failCount < 5) { // Don't retest heavily failed proxies
-        retestCandidates.push(proxy);
-      }
-    }
-    
-    if (retestCandidates.length > 0) {
-      console.log(`🔄 Re-testing ${retestCandidates.length} potentially recovered proxies...`);
+      this.stats.fastCount = this.fastProxies.length;
       
-      const limit = createLimit(20); // Test 20 concurrent
-      const tasks = retestCandidates.slice(0, 50).map(proxy => // Limit to 50 at once
-        limit(async () => {
-          const result = await this.testProxy(proxy);
-          if (result.success) {
-            // Move back to working proxies
-            this.deadProxies.delete(proxy);
-            this.workingProxies.set(proxy, {
-              successCount: 1,
-              failCount: 0,
-              totalResponseTime: result.responseTime,
-              avgResponseTime: result.responseTime,
-              lastTested: new Date(),
-              addedAt: new Date(),
-              successRate: 1.0,
-              recoveredAt: new Date()
-            });
-            console.log(`✅ Recovered proxy: ${proxy}`);
-            return true;
-          }
-          return false;
-        })
-      );
-      
-      Promise.allSettled(tasks);
+      console.log(`⚡ REMOVED: ${proxy} (${this.workingProxies.size} working, ${this.fastProxies.length} fast)`);
     }
   }
 
-  cleanupOldData() {
-    const now = Date.now();
-    const cleanupAge = 6 * 60 * 60 * 1000; // 6 hours
-    
-    // Clean old performance data
-    let cleanedPerformance = 0;
-    for (const [proxy, data] of this.proxyPerformance.entries()) {
-      if (now - (data.lastSuccess?.getTime() || 0) > cleanupAge) {
-        this.proxyPerformance.delete(proxy);
-        cleanedPerformance++;
-      }
-    }
-    
-    // Clean old request tracking
-    let cleanedRequests = 0;
-    for (const [proxy, timestamp] of this.recentRequests.entries()) {
-      if (now - timestamp > 60000) { // 1 minute
-        this.recentRequests.delete(proxy);
-        cleanedRequests++;
-      }
-    }
-    
-    // Clean very old dead proxies to free memory
-    let cleanedDead = 0;
-    for (const [proxy, data] of this.deadProxies.entries()) {
-      if (now - data.lastTested.getTime() > 24 * 60 * 60 * 1000 && // 24 hours old
-          data.failCount > 10) { // And heavily failed
-        this.deadProxies.delete(proxy);
-        this.proxyMetadata.delete(proxy);
-        cleanedDead++;
-      }
-    }
-    
-    if (cleanedPerformance > 0 || cleanedRequests > 0 || cleanedDead > 0) {
-      console.log(`🧹 Memory cleanup: ${cleanedPerformance} performance records, ${cleanedRequests} request records, ${cleanedDead} dead proxies removed`);
-    }
-  }
-
-  async testAllProxies() {
+  async lightningTestAllProxies() {
     if (this.isTesting) return;
     this.isTesting = true;
     
@@ -942,54 +546,45 @@ class ProxyManager {
       return;
     }
 
-    console.log(`🚀 Testing ${untestedProxies.length} proxies with high concurrency...`);
+    const startTime = Date.now();
+    console.log(`⚡ LIGHTNING TEST: ${untestedProxies.length} proxies with ${SPEED_OPTIMIZATION.proxyTestConcurrency} concurrent tests`);
     
-    // Use optimized settings for 16GB RAM
-    const batchSize = MEMORY_OPTIMIZATION.batchSize; // 500
-    const concurrency = MEMORY_OPTIMIZATION.proxyTestConcurrency; // 100
-    const limit = createLimit(concurrency);
+    // Use MAXIMUM concurrency for testing
+    const batchSize = SPEED_OPTIMIZATION.batchSize; // 1000
+    const concurrency = SPEED_OPTIMIZATION.proxyTestConcurrency; // 200
+    const limit = createFastLimit(concurrency);
     
     let totalTested = 0;
-    let batchNumber = 0;
+    let workingFound = 0;
     
     for (let i = 0; i < untestedProxies.length; i += batchSize) {
-      batchNumber++;
       const batch = untestedProxies.slice(i, i + batchSize);
+      const batchStart = Date.now();
       
-      console.log(`📦 Testing batch ${batchNumber}: ${batch.length} proxies (Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB)`);
+      console.log(`⚡ Testing batch: ${batch.length} proxies`);
       
       batch.forEach(proxy => this.testingQueue.add(proxy));
       
       const tasks = batch.map(proxy =>
         limit(async () => {
-          const result = await this.testProxy(proxy);
+          const result = await this.lightningTestProxy(proxy);
           this.testingQueue.delete(proxy);
-          
-          const now = new Date();
           
           if (result.success) {
             this.workingProxies.set(proxy, {
-              successCount: 1,
-              failCount: 0,
-              totalResponseTime: result.responseTime,
-              avgResponseTime: result.responseTime,
-              lastTested: now,
-              addedAt: now,
-              successRate: 1.0,
-              proxy: proxy // Store proxy reference
+              responseTime: result.responseTime,
+              addedAt: Date.now(),
+              successCount: 1
             });
             
-            // Add to fast proxies if response time is good
-            if (result.responseTime < 3000) {
-              this.fastProxies.add(proxy);
+            // Add to fast proxies if it's fast
+            if (result.fast) {
+              this.fastProxies.push(proxy);
             }
+            
+            workingFound++;
           } else {
-            this.deadProxies.set(proxy, {
-              lastTested: now,
-              failCount: 1,
-              lastError: 'Connection failed',
-              firstFailure: now
-            });
+            this.deadProxies.add(proxy);
           }
           
           totalTested++;
@@ -999,173 +594,170 @@ class ProxyManager {
 
       await Promise.allSettled(tasks);
       
-      // Log progress with memory usage
-      const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-      console.log(`✅ Batch ${batchNumber} complete: ${this.workingProxies.size} working, ${this.deadProxies.size} dead (Memory: ${memUsage}MB)`);
-      
-      // Small delay between batches to prevent overwhelming
-      if (i + batchSize < untestedProxies.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+      const batchTime = Date.now() - batchStart;
+      const batchSpeed = Math.round(batch.length / (batchTime / 1000));
+      console.log(`⚡ Batch complete: ${batchSpeed} tests/sec (${workingFound} working, ${this.fastProxies.length} fast)`);
     }
 
     this.stats.totalWorking = this.workingProxies.size;
-    this.stats.totalDead = this.deadProxies.size;
+    this.stats.fastCount = this.fastProxies.length;
     this.stats.testingSessions++;
     
-    const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    console.log(`✅ Testing complete: ${this.workingProxies.size} working, ${this.deadProxies.size} dead proxies`);
-    console.log(`📊 Memory usage: ${memUsage}MB / ${Math.round(os.totalmem() / 1024 / 1024 / 1024)}GB total RAM`);
-    console.log(`⚡ Fast proxies: ${this.fastProxies.size}`);
+    const duration = Date.now() - startTime;
+    this.stats.testSpeed = Math.round(totalTested / (duration / 1000));
+    
+    console.log(`⚡ LIGHTNING TEST COMPLETE: ${this.workingProxies.size} working, ${this.fastProxies.length} fast`);
+    console.log(`⚡ SPEED: ${this.stats.testSpeed} tests/second (${duration}ms total)`);
     
     this.isTesting = false;
   }
 
-  getStats() {
-    const memUsage = process.memoryUsage();
+  startLightningTasks() {
+    console.log("⚡ Starting LIGHTNING PROXY MANAGER...");
     
+    // Initial fetch and test
+    this.lightningFetchProxies().then(() => {
+      setTimeout(() => this.lightningTestAllProxies(), 2000); // Start testing after 2 seconds
+    });
+
+    // AGGRESSIVE refresh schedule
+    this.intervals.fetch = setInterval(async () => {
+      await this.lightningFetchProxies();
+      if (!this.isTesting) {
+        setTimeout(() => this.lightningTestAllProxies(), 2000);
+      }
+    }, 10 * 60 * 1000); // Every 10 minutes (was 20)
+
+    // Quick maintenance
+    this.intervals.maintenance = setInterval(() => {
+      this.lightningMaintenance();
+    }, 2 * 60 * 1000); // Every 2 minutes
+  }
+
+  lightningMaintenance() {
+    // Quick maintenance - just keep the fast proxies list clean
+    if (this.fastProxies.length > 100) {
+      this.fastProxies = this.fastProxies.slice(0, 100);
+    }
+    
+    // Clear old recently used
+    if (this.recentlyUsed.size > 200) {
+      this.recentlyUsed.clear();
+    }
+  }
+
+  getStats() {
     return {
-      ...this.stats,
-      workingProxiesCount: this.workingProxies.size,
-      deadProxiesCount: this.deadProxies.size,
-      totalProxiesCount: this.allProxies.size,
-      fastProxiesCount: this.fastProxies.size,
-      isTesting: this.isTesting,
-      isFetching: this.isFetching,
-      testingProgress: this.testingProgress,
-      memory: {
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-        external: Math.round(memUsage.external / 1024 / 1024),
-        arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024),
-        totalSystemRAM: Math.round(os.totalmem() / 1024 / 1024 / 1024),
-        freeSystemRAM: Math.round(os.freemem() / 1024 / 1024 / 1024)
+      mode: 'LIGHTNING SPEED',
+      proxies: {
+        total: this.allProxies.size,
+        working: this.workingProxies.size,
+        fast: this.fastProxies.length,
+        dead: this.deadProxies.size
       },
-      optimization: {
-        maxConcurrentRequests: this.maxActiveRequests,
-        activeRequests: this.activeRequests,
-        queueLength: this.requestQueue.length,
-        proxyMetadataCount: this.proxyMetadata.size,
-        performanceRecords: this.proxyPerformance.size,
-        recentRequestTracking: this.recentRequests.size
+      performance: {
+        fetchSpeed: this.stats.fetchSpeed + ' proxies/sec',
+        testSpeed: this.stats.testSpeed + ' tests/sec',
+        concurrency: SPEED_OPTIMIZATION.proxyTestConcurrency,
+        batchSize: SPEED_OPTIMIZATION.batchSize
       },
-      configuration: MEMORY_OPTIMIZATION
+      status: {
+        isFetching: this.isFetching,
+        isTesting: this.isTesting,
+        lastUpdate: this.stats.lastUpdate
+      },
+      optimization: SPEED_OPTIMIZATION
     };
   }
 
   destroy() {
-    // Clear all intervals
     Object.values(this.intervals).forEach(interval => {
       if (interval) clearInterval(interval);
     });
-    
-    // Clear memory maps
-    this.proxyMetadata.clear();
-    this.proxyPerformance.clear();
-    this.proxyGeolocation.clear();
-    this.recentRequests.clear();
-    this.requestQueue.length = 0;
-    
-    console.log('🔄 High-performance proxy manager shutting down...');
+    console.log('⚡ Lightning proxy manager shutdown');
   }
 }
 
 // ===============================
-// ENHANCED FETCH WITH HIGHER CONCURRENCY AND MEMORY BUFFERING
+// LIGHTNING-FAST FETCH FUNCTION
 // ===============================
-async function fetchWithProxy(url, req, maxRetries = 12, useCache = true, cache) {
+async function lightningFetch(url, req, maxRetries = SPEED_OPTIMIZATION.maxRetries, useCache = true, cache) {
   const isRangeRequest = req.headers.range;
   
   if (isRangeRequest) {
-    console.log(`📹 Range request detected for: ${url} (${req.headers.range})`);
+    console.log(`⚡ RANGE REQUEST: ${url} (${req.headers.range})`);
     useCache = false;
   }
 
+  // LIGHTNING cache check
   if (useCache) {
-    const cached = await cache.get(url);
+    const cached = await cache.fastGet(url);
     if (cached) {
-      console.log(`⚡ Cache hit: ${url} (${cached.hits === -1 ? 'Memory' : 'File'} cache)`);
+      console.log(`⚡ LIGHTNING HIT: ${url}`);
       return {
         data: cached.data,
         headers: cached.headers,
         contentType: cached.contentType,
         fromCache: true,
-        cacheHits: cached.hits
+        source: 'lightning-cache'
       };
     }
   }
 
   if (proxyManager.workingProxies.size === 0) {
-    throw new Error(`No working proxies available`);
+    throw new Error(`⚡ No working proxies available`);
   }
 
   const startTime = Date.now();
   let usedProxies = new Set();
   let lastError = null;
 
-  // Use more retries for better success rate with high RAM
+  // LIGHTNING-FAST retry loop
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const proxy = proxyManager.getBestWorkingProxy();
+    const proxy = proxyManager.getLightningProxy();
     
-    if (!proxy || usedProxies.has(proxy)) {
-      if (usedProxies.size >= Math.min(proxyManager.workingProxies.size, 20)) {
-        usedProxies.clear();
-      }
-      if (!proxy) {
-        throw new Error("No working proxies available");
-      }
+    if (!proxy) {
+      throw new Error("⚡ No lightning proxies available");
     }
-
+    
+    // Skip recently failed proxies for speed
+    if (usedProxies.has(proxy) && usedProxies.size < 10) {
+      continue;
+    }
+    
     usedProxies.add(proxy);
     
     try {
       const agent = new HttpsProxyAgent(`http://${proxy}`);
       
+      // Minimal headers for speed
       const proxyHeaders = {};
-      
-      if (req.headers.range) {
-        proxyHeaders.Range = req.headers.range;
-      }
-      if (req.headers['user-agent']) {
-        proxyHeaders['User-Agent'] = req.headers['user-agent'];
-      }
-      if (req.headers.referer) {
-        proxyHeaders.Referer = req.headers.referer;
-      }
+      if (req.headers.range) proxyHeaders.Range = req.headers.range;
+      if (req.headers['user-agent']) proxyHeaders['User-Agent'] = req.headers['user-agent'];
       
       const response = await axios.get(url, {
         httpAgent: agent,
         httpsAgent: agent,
-        timeout: isRangeRequest ? 20000 : 10000, // Increased timeouts
-        maxRedirects: 3,
+        timeout: SPEED_OPTIMIZATION.requestTimeout, // 8 seconds
+        maxRedirects: 2, // Minimal redirects for speed
         validateStatus: () => true,
         responseType: 'arraybuffer',
         headers: proxyHeaders,
-        maxContentLength: MEMORY_OPTIMIZATION.maxBufferSize, // 512MB max
-        maxBodyLength: MEMORY_OPTIMIZATION.maxBufferSize
+        maxContentLength: SPEED_OPTIMIZATION.maxBufferSize,
+        maxBodyLength: SPEED_OPTIMIZATION.maxBufferSize
       });
       
       const duration = Date.now() - startTime;
       
       if (response.status === 200 || response.status === 206) {
         const contentType = response.headers['content-type'];
-        const contentLength = response.headers['content-length'];
         
-        // Update proxy success statistics
-        if (proxyManager.workingProxies.has(proxy)) {
-          const metadata = proxyManager.workingProxies.get(proxy);
-          metadata.successCount = (metadata.successCount || 0) + 1;
-          metadata.totalResponseTime = (metadata.totalResponseTime || 0) + duration;
-          metadata.avgResponseTime = metadata.totalResponseTime / metadata.successCount;
-          metadata.lastSuccess = new Date();
-          proxyManager.workingProxies.set(proxy, metadata);
-        }
+        console.log(`⚡ SUCCESS: ${proxy} (${duration}ms, ${Math.round(response.data.length/1024)}KB)`);
         
-        console.log(`✅ Success with proxy: ${proxy} (${duration}ms, ${response.status}, ${Math.round(response.data.length/1024)}KB) [Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB]`);
-        
+        // LIGHTNING cache store
         let cached = false;
         if (useCache && response.status === 200) {
-          cached = await cache.set(url, response.data, response.headers, contentType);
+          cached = await cache.fastSet(url, response.data, response.headers, contentType);
         }
         
         return {
@@ -1178,63 +770,68 @@ async function fetchWithProxy(url, req, maxRetries = 12, useCache = true, cache)
           fromCache: false,
           status: response.status,
           cached: cached,
-          memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+          source: 'lightning-proxy'
         };
       } else {
-        console.log(`⚠️ Non-success response from ${proxy}: ${response.status}`);
+        console.log(`⚡ BAD STATUS: ${proxy} (${response.status})`);
         lastError = `HTTP ${response.status}`;
         continue;
       }
       
     } catch (err) {
       lastError = err.message;
-      console.log(`❌ Failed with proxy: ${proxy} (attempt ${attempt}/${maxRetries}) - ${err.message}`);
-      proxyManager.removeFailedProxy(proxy);
+      console.log(`⚡ FAILED: ${proxy} (${err.message.substring(0, 50)})`);
+      
+      // INSTANT failover - remove failed proxy immediately
+      if (SPEED_OPTIMIZATION.proxyFailFast) {
+        proxyManager.lightningRemoveProxy(proxy);
+      }
       
       if (attempt === maxRetries) {
         const duration = Date.now() - startTime;
-        throw new Error(`All ${maxRetries} attempts failed after ${duration}ms. Last error: ${lastError}`);
+        throw new Error(`⚡ All ${maxRetries} lightning attempts failed in ${duration}ms. Last error: ${lastError}`);
       }
     }
   }
 }
 
-// Initialize managers
-const proxyManager = new ProxyManager();
-const cache = new FileBasedSmartCache();
+// Initialize LIGHTNING managers
+const proxyManager = new LightningProxyManager();
+const cache = new LightningCache();
 
 // ===============================
-// EXPRESS ROUTES WITH ENHANCED PERFORMANCE
+// LIGHTNING EXPRESS ROUTES
 // ===============================
-app.use(express.json({ limit: '50mb' })); // Increased payload limit
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
   
-  // Add performance headers
-  res.header('X-Server-RAM', '16GB');
-  res.header('X-Max-Concurrent', MEMORY_OPTIMIZATION.maxConcurrentRequests);
-  res.header('X-Memory-Optimized', 'true');
+  // LIGHTNING headers
+  res.header('X-Lightning-Mode', 'ACTIVE');
+  res.header('X-Max-Concurrent', SPEED_OPTIMIZATION.maxConcurrentRequests);
+  res.header('X-Speed-Optimized', 'ULTRA-FAST');
   
   next();
 });
 
-// Enhanced main proxy endpoint
+// LIGHTNING main proxy endpoint
 app.get('/proxies', async (req, res) => {
-  const { url, nocache, timeout } = req.query;
+  const { url, nocache } = req.query;
   
   if (!url) {
     return res.status(400).json({ 
-      error: 'URL parameter is required',
+      error: 'URL parameter required',
       example: '/proxies?url=https://example.com',
-      optimizations: {
-        memoryOptimized: '16GB RAM utilization',
-        maxConcurrency: MEMORY_OPTIMIZATION.maxConcurrentRequests,
-        cacheStrategy: 'Hybrid file + memory cache',
-        videoStreaming: 'Full range request support'
+      mode: 'LIGHTNING SPEED',
+      optimization: {
+        maxConcurrency: SPEED_OPTIMIZATION.maxConcurrentRequests,
+        proxyTestTimeout: SPEED_OPTIMIZATION.proxyTestTimeout + 'ms',
+        requestTimeout: SPEED_OPTIMIZATION.requestTimeout + 'ms',
+        instantFailover: SPEED_OPTIMIZATION.instantFailover
       }
     });
   }
@@ -1250,10 +847,11 @@ app.get('/proxies', async (req, res) => {
   const isRangeRequest = !!req.headers.range;
 
   try {
-    console.log(`🌐 Fetching: ${url} ${isRangeRequest ? '(RANGE REQUEST)' : ''} ${!useCache ? '(NO-CACHE)' : ''} [Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB]`);
+    console.log(`⚡ LIGHTNING FETCH: ${url} ${isRangeRequest ? '(RANGE)' : ''} ${!useCache ? '(NO-CACHE)' : ''}`);
     
-    const result = await fetchWithProxy(url, req, 12, useCache, cache);
+    const result = await lightningFetch(url, req, SPEED_OPTIMIZATION.maxRetries, useCache, cache);
     
+    // Set response headers
     if (result.contentType) {
       res.set('Content-Type', result.contentType);
     }
@@ -1276,548 +874,377 @@ app.get('/proxies', async (req, res) => {
       res.set('Accept-Ranges', 'bytes');
     }
     
-    // Enhanced performance headers
-    res.set('X-Proxy-Used', result.proxy || 'cache');
-    res.set('X-Response-Time', `${result.duration || Date.now() - startTime}ms`);
-    res.set('X-Attempts', result.attempts || 0);
-    res.set('X-Cache-Status', result.fromCache ? 'HIT' : (result.cached ? 'STORED' : 'SKIP'));
-    res.set('X-Available-Proxies', proxyManager.workingProxies.size);
-    res.set('X-Content-Size', Math.round(result.data.length / 1024) + 'KB');
-    res.set('X-Range-Request', isRangeRequest ? 'YES' : 'NO');
-    res.set('X-Memory-Usage', `${result.memoryUsage || Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-    res.set('X-Fast-Proxies', proxyManager.fastProxies.size);
-    res.set('X-High-Performance', 'enabled');
+    // LIGHTNING performance headers
+    res.set('X-Lightning-Proxy', result.proxy || 'cache');
+    res.set('X-Lightning-Time', `${result.duration || Date.now() - startTime}ms`);
+    res.set('X-Lightning-Attempts', result.attempts || 0);
+    res.set('X-Lightning-Cache', result.fromCache ? 'HIT' : (result.cached ? 'STORED' : 'SKIP'));
+    res.set('X-Lightning-Working', proxyManager.workingProxies.size);
+    res.set('X-Lightning-Fast', proxyManager.fastProxies.length);
+    res.set('X-Lightning-Size', Math.round(result.data.length / 1024) + 'KB');
+    res.set('X-Lightning-Source', result.source || 'unknown');
     
     res.send(result.data);
     
   } catch (err) {
-    await cache.invalidate(url);
+    await cache.fastSet(url + '_error', 'error', {}, 'text/plain'); // Quick error cache
     
     const duration = Date.now() - startTime;
-    const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    console.error(`❌ Error after ${duration}ms (Memory: ${memUsage}MB):`, err.message);
+    console.error(`⚡ LIGHTNING ERROR after ${duration}ms:`, err.message);
     
     res.status(500).json({ 
-      error: 'Failed to fetch URL through proxy',
+      error: 'Lightning fetch failed',
       details: err.message,
       duration: `${duration}ms`,
-      availableProxies: proxyManager.workingProxies.size,
-      fastProxies: proxyManager.fastProxies.size,
-      isRangeRequest: isRangeRequest,
-      memoryUsage: `${memUsage}MB`,
-      optimization: '16GB RAM optimized server',
-      suggestion: 'Server automatically retries with multiple proxies and maintains high performance'
+      mode: 'LIGHTNING SPEED',
+      workingProxies: proxyManager.workingProxies.size,
+      fastProxies: proxyManager.fastProxies.length,
+      optimization: 'Ultra-fast failover with instant proxy switching',
+      suggestion: 'Lightning mode prioritizes speed over reliability - try again for different proxy'
     });
   }
 });
 
-// Enhanced stats endpoint
-app.get('/proxies/stats', async (req, res) => {
-  await cache.updateCacheStats();
+// LIGHTNING stats endpoint
+app.get('/proxies/stats', (req, res) => {
   const proxyStats = proxyManager.getStats();
   const cacheStats = cache.getStats();
+  const memUsage = process.memoryUsage();
   
   res.json({
-    serverOptimization: {
-      totalRAM: `${Math.round(os.totalmem() / 1024 / 1024 / 1024)}GB`,
-      ramUtilization: 'High Performance Mode',
-      maxConcurrency: MEMORY_OPTIMIZATION.maxConcurrentRequests,
-      configuration: MEMORY_OPTIMIZATION
-    },
-    stats: proxyStats,
-    cache: cacheStats,
+    mode: 'LIGHTNING SPEED OPTIMIZATION',
     performance: {
-      memoryOptimized: true,
-      hybridCache: 'File + Memory',
-      autoOptimization: true,
-      highConcurrency: true
-    }
+      totalRAM: `${Math.round(os.totalmem() / 1024 / 1024 / 1024)}GB`,
+      heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+      maxConcurrency: SPEED_OPTIMIZATION.maxConcurrentRequests,
+      proxyTestConcurrency: SPEED_OPTIMIZATION.proxyTestConcurrency,
+      batchSize: SPEED_OPTIMIZATION.batchSize
+    },
+    proxies: proxyStats,
+    cache: cacheStats,
+    speedOptimization: SPEED_OPTIMIZATION,
+    uptime: Math.round(process.uptime()) + 's'
   });
 });
 
-// Memory usage endpoint
-app.get('/memory', (req, res) => {
-  const usage = process.memoryUsage();
-  const system = {
-    total: os.totalmem(),
-    free: os.freemem(),
-    used: os.totalmem() - os.freemem()
-  };
-  
-  res.json({
-    process: {
-      heapUsed: `${Math.round(usage.heapUsed / 1024 / 1024)}MB`,
-      heapTotal: `${Math.round(usage.heapTotal / 1024 / 1024)}MB`,
-      external: `${Math.round(usage.external / 1024 / 1024)}MB`,
-      arrayBuffers: `${Math.round(usage.arrayBuffers / 1024 / 1024)}MB`,
-      rss: `${Math.round(usage.rss / 1024 / 1024)}MB`
-    },
-    system: {
-      total: `${Math.round(system.total / 1024 / 1024 / 1024)}GB`,
-      used: `${Math.round(system.used / 1024 / 1024 / 1024)}GB`,
-      free: `${Math.round(system.free / 1024 / 1024 / 1024)}GB`,
-      utilization: `${Math.round((system.used / system.total) * 100)}%`
-    },
-    optimization: {
-      targetHeapSize: `${MEMORY_OPTIMIZATION.maxOldSpaceSize / 1024}GB`,
-      maxBufferSize: `${MEMORY_OPTIMIZATION.maxBufferSize / 1024 / 1024}MB`,
-      memoryBuffer: `${MEMORY_OPTIMIZATION.memoryBuffer / 1024 / 1024 / 1024}GB`,
-      status: 'High Performance Mode Active'
-    },
-    proxies: {
-      inMemory: proxyManager.workingProxies.size + proxyManager.deadProxies.size,
-      metadata: proxyManager.proxyMetadata?.size || 0,
-      performance: proxyManager.proxyPerformance?.size || 0
-    },
-    cache: {
-      memoryCache: cache.memoryCache?.size || 0,
-      memoryCacheSize: `${Math.round((cache.memoryCacheSize || 0) / 1024 / 1024)}MB`
-    }
-  });
-});
-
-// Enhanced cache management
-app.get('/proxies/cache', async (req, res) => {
-  const showEntries = req.query.entries === '1';
-  
-  await cache.updateCacheStats();
+// LIGHTNING cache stats
+app.get('/proxies/cache', (req, res) => {
+  const cacheStats = cache.getStats();
+  const memEntries = req.query.entries === '1';
   
   const response = {
-    stats: cache.getStats(),
-    fileBasedCache: {
-      cacheFile: 'cache.txt',
-      maxSize: '200MB',
-      resetInterval: '3 hours',
-      autoCleanup: 'Yes - removes oldest 20% when size limit reached'
+    mode: 'LIGHTNING MEMORY CACHE',
+    stats: cacheStats,
+    configuration: {
+      type: 'Memory-only for maximum speed',
+      maxSize: `${Math.round(cache.maxMemoryCacheSize / 1024 / 1024 / 1024)}GB`,
+      resetInterval: '2 hours',
+      streaming: 'Auto-bypass for videos',
+      fileCache: 'DISABLED for speed'
     },
-    memoryOptimization: {
-      hybridCache: 'File + Memory cache for maximum performance',
-      memoryCacheSize: `${Math.round((cache.memoryCacheSize || 0) / 1024 / 1024)}MB`,
-      maxMemoryCache: `${Math.round(cache.maxMemoryCacheSize / 1024 / 1024)}MB`,
-      memoryEntries: cache.memoryCache?.size || 0,
-      memoryHitRate: cache.getStats().memoryStats?.memoryHitRate || '0%'
-    },
-    streamingSupport: {
-      maxFileSize: Math.round(cache.maxFileSize / 1024 / 1024) + 'MB',
-      skipExtensions: Array.from(cache.streamingExtensions),
-      videoHandling: 'Videos bypass cache and support range requests'
+    performance: {
+      instantAccess: 'Memory-only storage',
+      noFileIO: 'Zero disk operations',
+      fastCleanup: 'Automated memory management'
     }
   };
   
-  if (showEntries) {
-    try {
-      const content = await fs.readFile(cache.cacheFile, 'utf8');
-      const cacheData = JSON.parse(content);
-      
-      response.entries = Object.values(cacheData)
-        .map(entry => ({
-          url: entry.url,
-          contentType: entry.contentType || 'unknown',
-          size: Math.round(entry.size / 1024) + 'KB',
-          hits: entry.hits,
-          age: Math.round((Date.now() - entry.timestamp) / 1000) + 's'
-        }))
-        .sort((a, b) => b.hits - a.hits)
-        .slice(0, 100); // Show top 100 entries
-        
-    } catch (error) {
-      response.entries = [];
-      response.error = 'Could not read cache entries';
+  if (memEntries && cache.memoryCache.size > 0) {
+    const entries = [];
+    let count = 0;
+    for (const [key, value] of cache.memoryCache.entries()) {
+      if (count >= 50) break; // Show only first 50
+      entries.push({
+        url: value.url || 'unknown',
+        size: Math.round(value.size / 1024) + 'KB',
+        age: Math.round((Date.now() - value.timestamp) / 1000) + 's',
+        contentType: value.contentType || 'unknown'
+      });
+      count++;
     }
+    response.entries = entries;
   }
   
   res.json(response);
 });
 
-app.delete('/proxies/cache', async (req, res) => {
+// LIGHTNING cache clear
+app.delete('/proxies/cache', (req, res) => {
   const { url } = req.query;
   
   if (url) {
-    const deleted = await cache.invalidate(url);
+    const key = cache.generateKey(url);
+    const existed = cache.memoryCache.has(key);
+    if (existed) {
+      const item = cache.memoryCache.get(key);
+      cache.memoryCacheSize -= item.size;
+      cache.memoryCache.delete(key);
+    }
+    
     res.json({ 
-      message: deleted ? `Cache deleted for: ${url}` : `Cache entry not found: ${url}`,
-      deleted,
-      memoryUsage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`
+      message: existed ? `Lightning cache cleared for: ${url}` : `Cache entry not found: ${url}`,
+      cleared: existed,
+      mode: 'LIGHTNING MEMORY CACHE'
     });
   } else {
-    const cleared = await cache.clear();
+    const oldSize = cache.memoryCacheSize;
+    const oldEntries = cache.memoryCache.size;
+    
+    cache.memoryCache.clear();
+    cache.memoryCacheSize = 0;
+    
     res.json({ 
-      message: cleared ? 'All cache cleared' : 'Failed to clear cache',
-      cleared,
-      memoryUsage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`
+      message: 'All lightning cache cleared',
+      cleared: true,
+      freedMemory: Math.round(oldSize / 1024 / 1024) + 'MB',
+      clearedEntries: oldEntries,
+      mode: 'LIGHTNING MEMORY CACHE'
     });
   }
 });
 
-// Force cache reset endpoint
-app.post('/proxies/cache/reset', async (req, res) => {
-  await cache.resetCache();
-  res.json({ 
-    message: 'Cache manually reset',
-    nextAutoReset: new Date(Date.now() + cache.resetInterval),
-    resetCount: cache.stats.resetCount,
-    memoryUsage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`
-  });
-});
-
-// Enhanced proxy management endpoints
+// LIGHTNING proxy management
 app.post('/proxies/test', async (req, res) => {
   if (proxyManager.isTesting) {
     return res.status(429).json({
-      error: 'Testing already in progress',
-      progress: proxyManager.testingProgress
+      error: 'Lightning testing already in progress',
+      mode: 'LIGHTNING SPEED'
     });
   }
 
-  console.log('🧪 Manual proxy testing initiated...');
+  console.log('⚡ LIGHTNING TEST: Manual testing initiated...');
   
-  // Start testing in background
-  proxyManager.testAllProxies().then(() => {
-    console.log('✅ Manual proxy testing completed');
+  // Start lightning testing
+  proxyManager.lightningTestAllProxies().then(() => {
+    console.log('⚡ LIGHTNING TEST: Manual testing completed');
   });
   
   res.json({
-    message: 'Proxy testing started',
+    message: 'Lightning proxy testing started',
+    mode: 'ULTRA-FAST',
     configuration: {
-      batchSize: MEMORY_OPTIMIZATION.batchSize,
-      concurrency: MEMORY_OPTIMIZATION.proxyTestConcurrency,
-      memoryOptimized: true
+      concurrency: SPEED_OPTIMIZATION.proxyTestConcurrency,
+      batchSize: SPEED_OPTIMIZATION.batchSize,
+      timeout: SPEED_OPTIMIZATION.proxyTestTimeout + 'ms',
+      instantFailover: SPEED_OPTIMIZATION.proxyFailFast
     },
-    estimatedTime: `${Math.ceil(proxyManager.allProxies.size / MEMORY_OPTIMIZATION.batchSize)} batches`,
-    memoryUsage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`
+    estimatedTime: `${Math.ceil(proxyManager.allProxies.size / SPEED_OPTIMIZATION.batchSize)} lightning batches`
   });
 });
 
 app.post('/proxies/fetch', async (req, res) => {
   if (proxyManager.isFetching) {
     return res.status(429).json({
-      error: 'Fetching already in progress'
+      error: 'Lightning fetch already in progress'
     });
   }
 
-  console.log('📡 Manual proxy fetching initiated...');
+  console.log('⚡ LIGHTNING FETCH: Manual fetch initiated...');
   
   try {
-    const result = await proxyManager.fetchProxies();
+    const result = await proxyManager.lightningFetchProxies();
     res.json({
-      message: 'Proxy fetching completed',
+      message: 'Lightning proxy fetch completed',
       totalProxies: result.size,
       sources: proxySources.length,
-      memoryUsage: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`
+      mode: 'LIGHTNING SPEED',
+      fetchSpeed: proxyManager.stats.fetchSpeed + ' proxies/sec'
     });
   } catch (error) {
     res.status(500).json({
-      error: 'Failed to fetch proxies',
-      details: error.message
+      error: 'Lightning fetch failed',
+      details: error.message,
+      mode: 'LIGHTNING SPEED'
     });
   }
 });
 
-// Performance monitoring endpoint
+// LIGHTNING performance monitor
 app.get('/performance', (req, res) => {
   const stats = proxyManager.getStats();
   const cacheStats = cache.getStats();
   const memUsage = process.memoryUsage();
   
   res.json({
+    mode: 'LIGHTNING PERFORMANCE MONITORING',
     timestamp: new Date().toISOString(),
     server: {
       uptime: `${Math.round(process.uptime())}s`,
-      memoryOptimization: '16GB RAM High Performance Mode',
+      optimization: 'LIGHTNING SPEED MODE',
       nodeVersion: process.version,
-      platform: os.platform(),
-      arch: os.arch(),
-      cpus: os.cpus().length
+      totalRAM: Math.round(os.totalmem() / 1024 / 1024 / 1024) + 'GB',
+      freeRAM: Math.round(os.freemem() / 1024 / 1024 / 1024) + 'GB'
     },
     memory: {
-      process: {
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-        external: Math.round(memUsage.external / 1024 / 1024),
-        arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024)
-      },
-      system: {
-        total: Math.round(os.totalmem() / 1024 / 1024 / 1024),
-        free: Math.round(os.freemem() / 1024 / 1024 / 1024),
-        used: Math.round((os.totalmem() - os.freemem()) / 1024 / 1024 / 1024)
-      },
-      optimization: MEMORY_OPTIMIZATION
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+      external: Math.round(memUsage.external / 1024 / 1024) + 'MB'
     },
-    proxies: {
-      working: stats.workingProxiesCount,
-      fast: stats.fastProxiesCount,
-      dead: stats.deadProxiesCount,
-      total: stats.totalProxiesCount,
-      inMemoryMetadata: stats.optimization?.proxyMetadataCount || 0,
-      performanceRecords: stats.optimization?.performanceRecords || 0
-    },
-    cache: {
-      fileCache: {
-        entries: cacheStats.totalEntries,
-        sizeMB: cacheStats.sizeMB,
-        hitRate: cacheStats.hitRate
+    lightning: {
+      proxies: stats.proxies,
+      cache: cacheStats.memoryCache,
+      speeds: {
+        fetch: stats.performance.fetchSpeed,
+        test: stats.performance.testSpeed
       },
-      memoryCache: {
-        entries: cacheStats.memoryStats?.memoryCacheEntries || 0,
-        sizeMB: Math.round((cache.memoryCacheSize || 0) / 1024 / 1024),
-        hitRate: cacheStats.memoryStats?.memoryHitRate || '0%'
-      }
-    },
-    concurrency: {
-      maxConcurrentRequests: stats.optimization?.maxConcurrentRequests || 0,
-      activeRequests: stats.optimization?.activeRequests || 0,
-      queueLength: stats.optimization?.queueLength || 0
+      optimization: SPEED_OPTIMIZATION
     }
   });
 });
 
-// Dashboard endpoint
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-
-// Enhanced health check with memory information
-app.get('/health', async (req, res) => {
+// LIGHTNING health check
+app.get('/health', (req, res) => {
   const stats = proxyManager.getStats();
-  await cache.updateCacheStats();
   const cacheStats = cache.getStats();
   const memUsage = process.memoryUsage();
-  const systemMem = {
-    total: os.totalmem(),
-    free: os.freemem()
-  };
   
   const health = {
-    status: 'ok',
+    status: 'LIGHTNING',
     timestamp: new Date().toISOString(),
     uptime: Math.round(process.uptime()),
-    server: {
-      memoryOptimized: '16GB RAM High Performance Mode',
-      maxConcurrency: MEMORY_OPTIMIZATION.maxConcurrentRequests,
-      configuration: 'High Performance'
-    },
+    mode: 'ULTRA-FAST SPEED OPTIMIZATION',
     memory: {
-      process: {
-        used: Math.round(memUsage.heapUsed / 1024 / 1024),
-        total: Math.round(memUsage.heapTotal / 1024 / 1024),
-        external: Math.round(memUsage.external / 1024 / 1024),
-        utilization: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
-      },
-      system: {
-        total: Math.round(systemMem.total / 1024 / 1024 / 1024),
-        free: Math.round(systemMem.free / 1024 / 1024 / 1024),
-        used: Math.round((systemMem.total - systemMem.free) / 1024 / 1024 / 1024),
-        utilization: Math.round(((systemMem.total - systemMem.free) / systemMem.total) * 100)
-      }
+      used: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+      total: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+      system: Math.round(os.totalmem() / 1024 / 1024 / 1024) + 'GB'
     },
     proxies: {
-      total: stats.totalProxiesCount,
-      working: stats.workingProxiesCount,
-      fast: stats.fastProxiesCount,
-      dead: stats.deadProxiesCount,
-      testing: stats.isTesting,
-      fetching: stats.isFetching
+      total: stats.proxies.total,
+      working: stats.proxies.working,
+      fast: stats.proxies.fast,
+      testing: stats.status.isTesting,
+      fetching: stats.status.isFetching
     },
     cache: {
-      type: 'hybrid-optimized',
-      fileCache: {
-        file: 'cache.txt',
-        entries: cacheStats.totalEntries,
-        sizeMB: cacheStats.sizeMB,
-        hitRate: cacheStats.hitRate
-      },
-      memoryCache: {
-        entries: cache.memoryCache?.size || 0,
-        sizeMB: Math.round((cache.memoryCacheSize || 0) / 1024 / 1024),
-        hitRate: cacheStats.memoryStats?.memoryHitRate || '0%',
-        maxSizeMB: Math.round(cache.maxMemoryCacheSize / 1024 / 1024)
-      },
-      skipRate: cacheStats.skipRate,
-      resetCount: cacheStats.resetCount,
-      timeToNextReset: cacheStats.timeToNextReset
-    },
-    videoStreaming: {
-      rangeRequestSupport: 'enabled',
-      cacheBypass: 'automatic for videos',
-      maxCacheFileSize: Math.round(cache.maxFileSize / 1024 / 1024) + 'MB'
+      type: 'LIGHTNING MEMORY',
+      entries: cacheStats.memoryCache.entries,
+      sizeMB: cacheStats.memoryCache.sizeMB,
+      hitRate: cacheStats.memoryCache.hitRate
     },
     performance: {
-      highConcurrency: true,
-      memoryOptimization: true,
-      autoScaling: true,
-      loadBalancing: true
+      fetchSpeed: stats.performance.fetchSpeed,
+      testSpeed: stats.performance.testSpeed,
+      maxConcurrency: SPEED_OPTIMIZATION.maxConcurrentRequests,
+      instantFailover: SPEED_OPTIMIZATION.proxyFailFast
     }
   };
   
-  // Add warning if memory usage is too low (not utilizing available RAM)
-  if (health.memory.process.used < 2000) { // Less than 2GB
-    health.warnings = health.warnings || [];
-    health.warnings.push('Low memory utilization - server can handle much higher load');
-  }
-  
-  // Add warning if no working proxies
   if (health.proxies.working === 0) {
-    health.warnings = health.warnings || [];
-    health.warnings.push('No working proxies available');
-    health.status = 'degraded';
+    health.status = 'LIGHTNING-DEGRADED';
+    health.warning = 'No working proxies - lightning fetch in progress';
   }
   
   res.json(health);
 });
 
-// API documentation with performance information
-app.get('/', async (req, res) => {
-  await cache.updateCacheStats();
+// LIGHTNING documentation
+app.get('/', (req, res) => {
   const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   const totalRAM = Math.round(os.totalmem() / 1024 / 1024 / 1024);
   
   res.json({
-    name: 'High-Performance Proxy Bridge API - 16GB RAM Optimized',
-    version: '6.0.0',
-    description: 'Ultra-high performance proxy bridge optimized for 16GB RAM with hybrid caching and maximum concurrency',
+    name: 'LIGHTNING-SPEED Proxy Bridge API',
+    version: '⚡ 7.0.0 LIGHTNING',
+    description: 'Ultra-fast proxy bridge optimized for MAXIMUM SPEED with instant failover',
     
-    serverOptimization: {
+    lightningOptimization: {
+      mode: 'LIGHTNING SPEED',
       totalRAM: `${totalRAM}GB`,
-      currentMemoryUsage: `${memUsage}MB`,
-      maxConcurrency: MEMORY_OPTIMIZATION.maxConcurrentRequests,
-      proxyTestConcurrency: MEMORY_OPTIMIZATION.proxyTestConcurrency,
-      batchSize: MEMORY_OPTIMIZATION.batchSize,
-      maxBufferSize: `${MEMORY_OPTIMIZATION.maxBufferSize / 1024 / 1024}MB`,
-      configuration: 'High Performance Mode'
+      currentMemory: `${memUsage}MB`,
+      maxConcurrency: SPEED_OPTIMIZATION.maxConcurrentRequests,
+      proxyTestTimeout: SPEED_OPTIMIZATION.proxyTestTimeout + 'ms',
+      requestTimeout: SPEED_OPTIMIZATION.requestTimeout + 'ms',
+      instantFailover: SPEED_OPTIMIZATION.proxyFailFast ? 'ENABLED' : 'DISABLED'
     },
     
     endpoints: {
-      'Main Proxy': {
-        'GET /proxies?url=<URL>': 'Proxy any URL with automatic video streaming support',
-        'GET /proxies?url=<URL>&nocache=1': 'Bypass cache (automatically done for videos)'
+      'LIGHTNING Proxy': {
+        'GET /proxies?url=<URL>': 'Lightning-fast proxy with instant failover',
+        'GET /proxies?url=<URL>&nocache=1': 'Bypass lightning cache'
       },
-      'Statistics & Monitoring': {
-        'GET /proxies/stats': 'Get comprehensive proxy and cache statistics',
-        'GET /health': 'System health check with memory information',
-        'GET /performance': 'Detailed performance monitoring',
-        'GET /memory': 'Real-time memory usage statistics'
+      'LIGHTNING Stats': {
+        'GET /proxies/stats': 'Lightning performance statistics',
+        'GET /health': 'Lightning system health',
+        'GET /performance': 'Lightning performance monitoring'
       },
-      'Cache Management': {
-        'GET /proxies/cache': 'View cache statistics and streaming info',
-        'GET /proxies/cache?entries=1': 'View cached entries (top 100)',
-        'DELETE /proxies/cache': 'Clear all cache',
-        'DELETE /proxies/cache?url=<URL>': 'Delete specific cache entry',
-        'POST /proxies/cache/reset': 'Force manual cache reset'
+      'LIGHTNING Cache': {
+        'GET /proxies/cache': 'Lightning memory cache stats',
+        'DELETE /proxies/cache': 'Clear lightning cache'
       },
-      'Proxy Management': {
-        'POST /proxies/test': 'Manually trigger proxy testing',
-        'POST /proxies/fetch': 'Manually fetch new proxies'
-      },
-      'Documentation': {
-        'GET /': 'This documentation',
-        'GET /dashboard': 'Web dashboard interface'
+      'LIGHTNING Control': {
+        'POST /proxies/test': 'Lightning proxy testing',
+        'POST /proxies/fetch': 'Lightning proxy fetch'
       }
     },
 
-    performanceFeatures: [
-      '🚀 16GB RAM optimized for maximum performance',
-      '⚡ Up to ' + MEMORY_OPTIMIZATION.maxConcurrentRequests + ' concurrent requests',
-      '🧠 Hybrid cache system: File + Memory for ultra-fast access',
-      '📊 Real-time memory monitoring and optimization',
-      '🔄 Auto-scaling proxy testing (' + MEMORY_OPTIMIZATION.proxyTestConcurrency + ' concurrent)',
-      '💾 Intelligent memory buffer management',
-      '📈 Performance tracking and optimization',
-      '🎯 Smart proxy selection with load balancing'
+    lightningFeatures: [
+      '⚡ INSTANT failover - failed proxies removed immediately',
+      '🚀 Up to ' + SPEED_OPTIMIZATION.maxConcurrentRequests + ' concurrent requests',
+      '💾 2GB memory-only cache for zero disk I/O',
+      '🧠 ' + SPEED_OPTIMIZATION.proxyTestConcurrency + ' concurrent proxy tests',
+      '⚡ ' + SPEED_OPTIMIZATION.proxyTestTimeout + 'ms proxy timeout for speed',
+      '🎯 Smart fast proxy selection and rotation',
+      '📦 ' + SPEED_OPTIMIZATION.batchSize + ' proxy batch processing',
+      '🔄 Instant proxy switching on failure'
     ],
 
-    memoryOptimization: [
-      '📁 File-based cache (200MB) + Memory cache (500MB)',
-      '🔄 Auto-reset every 3 hours to prevent memory bloat',
-      '🧹 Smart cleanup and memory management',
-      '📊 In-memory proxy metadata and performance tracking',
-      '⚡ Pre-calculated proxy scores for faster selection',
-      '🚀 Large file buffering up to 512MB',
-      '💡 Automatic memory usage monitoring',
-      '🎯 Dynamic optimization based on available RAM'
+    speedOptimizations: [
+      '⚡ Memory-only cache (NO file I/O)',
+      '🚀 Instant proxy failover and removal',
+      '💨 Ultra-fast proxy testing (3s timeout)',
+      '🎯 Fast proxy prioritization',
+      '📊 Minimal metadata tracking',
+      '🧠 Smart batch processing',
+      '⚡ Aggressive timeouts for speed',
+      '💾 2GB memory cache capacity'
     ],
 
     videoStreamingFeatures: [
-      '🎬 Full HTTP range request support for video streaming',
-      '📱 Mobile-friendly video playback with seeking',
-      '⚡ Smart cache bypass for large files and videos',
-      '🎯 Proper HTTP 206 Partial Content responses',
-      '📺 Support for all video formats (MP4, WebM, MKV, etc.)',
-      '🔄 Seamless seeking and buffering',
-      '💾 Intelligent caching for small files only',
-      '🚫 Automatic detection of streaming content'
+      '🎬 Full HTTP range request support',
+      '📱 Mobile video streaming optimized',
+      '⚡ Lightning-fast video proxy switching',
+      '🎯 Auto-bypass cache for videos',
+      '📺 All video formats supported',
+      '🚀 Instant seeking and buffering'
     ],
 
-    cacheSystem: {
-      type: 'Hybrid: File-based + In-memory with auto-reset',
-      fileCache: {
-        file: 'cache.txt',
-        maxSize: '200MB',
-        resetInterval: '3 hours'
-      },
-      memoryCache: {
-        maxSize: '500MB',
-        ttl: '30 minutes',
-        entries: cache.memoryCache?.size || 0
-      },
-      currentStats: cache.getStats(),
-      benefits: [
-        'Ultra-fast memory access for frequent requests',
-        'Persistent file storage survives restarts',
-        'Automatic cleanup and reset cycles',
-        'Smart size management prevents bloat',
-        'Detailed performance analytics'
-      ]
-    },
-
     examples: {
-      webpage: '/proxies?url=https://example.com',
+      standard: '/proxies?url=https://httpbin.org/ip',
       video: '/proxies?url=https://example.com/video.mp4',
-      api: '/proxies?url=https://api.example.com/data.json',
-      largeFile: '/proxies?url=https://example.com/large-file.zip',
-      streaming: '/proxies?url=https://streaming-service.com/content'
+      api: '/proxies?url=https://api.example.com/data',
+      speed: '/proxies?url=https://fast-api.com/endpoint'
     },
 
-    highPerformanceConfig: MEMORY_OPTIMIZATION,
-
-    troubleshooting: {
-      videoStreaming: 'Full range request support - no lag or buffering issues',
-      largeFiles: 'Files up to 512MB supported with efficient memory management',
-      concurrency: 'Up to ' + MEMORY_OPTIMIZATION.maxConcurrentRequests + ' concurrent requests supported',
-      memoryUsage: 'Optimized for 16GB RAM - automatically scales performance',
-      proxyTesting: 'High-speed testing with ' + MEMORY_OPTIMIZATION.proxyTestConcurrency + ' concurrent tests',
-      caching: 'Hybrid cache system provides optimal performance',
-      monitoring: 'Real-time performance monitoring available'
-    },
+    lightningConfig: SPEED_OPTIMIZATION,
 
     currentStats: {
       proxies: proxyManager.getStats(),
       cache: cache.getStats(),
-      memory: {
-        current: `${memUsage}MB`,
-        total: `${totalRAM}GB`,
-        optimization: 'High Performance Mode Active'
-      },
-      uptime: Math.round(process.uptime()) + 's'
-    }
+      memory: `${memUsage}MB / ${totalRAM}GB`,
+      uptime: Math.round(process.uptime()) + 's',
+      mode: 'LIGHTNING ACTIVE'
+    },
+
+    speedTips: [
+      '⚡ Lightning mode prioritizes speed over stability',
+      '🚀 Failed proxies are instantly removed and replaced',
+      '💾 Memory-only cache eliminates disk I/O delays',
+      '🎯 Fast proxies are automatically prioritized',
+      '⚡ Aggressive timeouts ensure quick responses',
+      '🔄 Instant failover prevents slow requests'
+    ]
   });
 });
 
-// Graceful shutdown with enhanced cleanup
+// Graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`🛑 ${signal} received, shutting down gracefully...`);
+  console.log(`⚡ ${signal} - Lightning shutdown initiated...`);
   
-  // Clear proxy intervals
-  Object.values(proxyManager.intervals).forEach(interval => {
-    if (interval) clearInterval(interval);
-  });
-  
-  // Cleanup proxy manager
+  // Lightning cleanup
   proxyManager.destroy();
-  
-  // Cleanup cache
   cache.destroy();
   
-  console.log('✅ Cleanup completed, exiting...');
+  console.log('⚡ Lightning shutdown complete');
   process.exit(0);
 };
 
@@ -1825,53 +1252,48 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('⚡ Unhandled Rejection:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('⚡ Uncaught Exception:', error);
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-// Set Node.js memory limits for high RAM usage
-if (process.env.NODE_OPTIONS !== `--max-old-space-size=${MEMORY_OPTIMIZATION.maxOldSpaceSize}`) {
-  console.log(`💡 For optimal performance with 16GB RAM, set NODE_OPTIONS=--max-old-space-size=${MEMORY_OPTIMIZATION.maxOldSpaceSize}`);
-}
-
-// Start server
+// Start LIGHTNING server
 app.listen(PORT, () => {
   const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   const totalRAM = Math.round(os.totalmem() / 1024 / 1024 / 1024);
   
-  console.log(`🚀 High-Performance Proxy Bridge API running on port ${PORT}`);
-  console.log(`💾 Server RAM: ${totalRAM}GB (Current usage: ${memUsage}MB)`);
-  console.log(`⚡ Max concurrent requests: ${MEMORY_OPTIMIZATION.maxConcurrentRequests}`);
-  console.log(`🧪 Proxy testing concurrency: ${MEMORY_OPTIMIZATION.proxyTestConcurrency}`);
-  console.log(`📦 Batch size: ${MEMORY_OPTIMIZATION.batchSize}`);
-  console.log(`🗃️ Max buffer size: ${MEMORY_OPTIMIZATION.maxBufferSize / 1024 / 1024}MB`);
-  console.log(``);
-  console.log(`📖 Documentation: http://localhost:${PORT}/`);
-  console.log(`🌐 Standard: http://localhost:${PORT}/proxies?url=https://httpbin.org/ip`);
-  console.log(`🎬 Video: http://localhost:${PORT}/proxies?url=https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4`);
+  console.log(`⚡ ═══════════════════════════════════════════════`);
+  console.log(`⚡ LIGHTNING PROXY BRIDGE API - PORT ${PORT}`);
+  console.log(`⚡ ═══════════════════════════════════════════════`);
+  console.log(`💾 System RAM: ${totalRAM}GB (Using: ${memUsage}MB)`);
+  console.log(`🚀 Max Concurrent: ${SPEED_OPTIMIZATION.maxConcurrentRequests}`);
+  console.log(`🧪 Test Concurrent: ${SPEED_OPTIMIZATION.proxyTestConcurrency}`);
+  console.log(`⏱️  Proxy Timeout: ${SPEED_OPTIMIZATION.proxyTestTimeout}ms`);
+  console.log(`⏱️  Request Timeout: ${SPEED_OPTIMIZATION.requestTimeout}ms`);
+  console.log(`💨 Instant Failover: ${SPEED_OPTIMIZATION.proxyFailFast ? 'ON' : 'OFF'}`);
+  console.log(`📦 Batch Size: ${SPEED_OPTIMIZATION.batchSize}`);
+  console.log(`💾 Memory Cache: ${Math.round(SPEED_OPTIMIZATION.memoryBuffer / 1024 / 1024 / 1024)}GB`);
+  console.log(`⚡ ═══════════════════════════════════════════════`);
+  console.log(`📖 Docs: http://localhost:${PORT}/`);
+  console.log(`🌐 Test: http://localhost:${PORT}/proxies?url=https://httpbin.org/ip`);
   console.log(`📊 Stats: http://localhost:${PORT}/proxies/stats`);
-  console.log(`💾 Cache: http://localhost:${PORT}/proxies/cache?entries=1`);
-  console.log(`📈 Performance: http://localhost:${PORT}/performance`);
-  console.log(`💻 Memory: http://localhost:${PORT}/memory`);
-  console.log(`❤️ Health: http://localhost:${PORT}/health`);
-  console.log(`🎛️ Dashboard: http://localhost:${PORT}/dashboard`);
-  console.log(``);
-  console.log(`📁 Cache: cache.txt (200MB file + 500MB memory, 3-hour auto-reset)`);
-  console.log(`🚀 Performance Mode: HIGH (16GB RAM Optimized)`);
+  console.log(`❤️  Health: http://localhost:${PORT}/health`);
+  console.log(`⚡ ═══════════════════════════════════════════════`);
+  console.log(`⚡ LIGHTNING MODE: ULTRA-FAST PROXY BRIDGE READY!`);
+  console.log(`⚡ ═══════════════════════════════════════════════`);
   
-  // Start background tasks
-  proxyManager.startBackgroundTasks();
+  // Start lightning tasks
+  proxyManager.startLightningTasks();
   
-  // Log memory optimization status
+  // Show memory status
   setTimeout(() => {
     const currentMem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    console.log(`📊 Initial memory usage: ${currentMem}MB / ${totalRAM}GB available`);
-    console.log(`🎯 Target memory utilization: 8-12GB for optimal performance`);
-  }, 5000);
+    console.log(`⚡ Lightning memory: ${currentMem}MB active`);
+    console.log(`⚡ Lightning optimization: SPEED PRIORITY MODE`);
+  }, 3000);
 });
 
-module.exports = { app, proxyManager, cache, MEMORY_OPTIMIZATION };
+module.exports = { app, proxyManager, cache, SPEED_OPTIMIZATION };
